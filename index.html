@@ -218,6 +218,22 @@
       color: rgba(255, 255, 255, 0.25);
     }
 
+    .phone-submit {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 0 4px;
+      flex-shrink: 0;
+      transition: opacity 100ms linear;
+    }
+
+    .phone-submit:hover {
+      opacity: 0.7;
+    }
+
     .phone-hint {
       font-family: var(--mono);
       font-size: 12px;
@@ -319,6 +335,7 @@
           <form class="phone-input" id="phone-form">
             <span class="phone-prefix"><span class="flag">🇬🇧</span> +44</span>
             <input type="tel" id="phone" placeholder="12 3456 7890" autocomplete="tel">
+            <button type="submit" class="phone-submit" id="phone-submit">→</button>
           </form>
           <span class="phone-hint">enter your number to join.</span>
         </div>
@@ -339,7 +356,17 @@
     </div>
   </div>
 
-  <script>
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getFirestore, collection, addDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    const app = initializeApp({
+      apiKey: "AIzaSyCgI8TMFGa1DJ1xnoGvIXP-Goyv1nFlPug",
+      authDomain: "cccircuit.firebaseapp.com",
+      projectId: "cccircuit",
+    });
+    const db = getFirestore(app);
+
     const items = [
       'film screenings',
       'comedy nights',
@@ -370,10 +397,23 @@
       document.getElementById('phone').focus();
     });
 
-    document.getElementById('phone-form').addEventListener('submit', (e) => {
+    document.getElementById('phone-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const num = document.getElementById('phone').value.trim();
-      if (num) console.log('+44 ' + num);
+      if (!num) return;
+      const btn = document.getElementById('phone-submit');
+      btn.textContent = '...';
+      try {
+        await addDoc(collection(db, 'signups'), {
+          phone: '+44 ' + num,
+          created_at: serverTimestamp(),
+        });
+        document.getElementById('phone-reveal').innerHTML =
+          '<span class="phone-hint">we\'ll be in touch.</span>';
+      } catch (err) {
+        console.error(err);
+        btn.textContent = '→';
+      }
     });
 
     // About modal
