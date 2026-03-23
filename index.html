@@ -119,11 +119,9 @@
       background: var(--accent);
       border: none;
       border-radius: 2px;
-      padding: 0 0.5em;
-      vertical-align: bottom;
+      padding: 0.1em 0.5em;
+      vertical-align: baseline;
       overflow: hidden;
-      height: 1.5em;
-      line-height: 1.5em;
     }
 
     .pill-inner {
@@ -134,8 +132,6 @@
     .pill-text {
       display: block;
       white-space: nowrap;
-      height: 1.5em;
-      line-height: 1.5em;
       text-align: center;
     }
 
@@ -290,7 +286,7 @@
     const nextText = inner.children[1];
     const pill = inner.parentElement;
 
-    // Measure widest item and fix pill width
+    // Measure widest item and fix pill dimensions
     let maxW = 0;
     const original = currentText.textContent;
     for (const item of items) {
@@ -298,13 +294,16 @@
       maxW = Math.max(maxW, currentText.scrollWidth);
     }
     currentText.textContent = original;
-    pill.style.width = (maxW + 1) + 'px';
+    pill.style.width = Math.ceil(maxW + 2) + 'px';
+
+    // Lock pill height to one line's height
+    const lineH = currentText.offsetHeight;
+    pill.style.height = lineH + 'px';
 
     setInterval(() => {
       index = (index + 1) % items.length;
       nextText.textContent = items[index];
-      const h = pill.offsetHeight;
-      inner.style.transform = 'translateY(-' + h + 'px)';
+      inner.style.transform = 'translateY(-' + lineH + 'px)';
 
       setTimeout(() => {
         inner.style.transition = 'none';
