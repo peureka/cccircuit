@@ -133,6 +133,46 @@
       gap: 12px;
     }
 
+    .join-btn {
+      background: var(--accent);
+      color: var(--bg);
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 2px;
+      padding: 0 32px;
+      height: 48px;
+      min-height: 44px;
+      cursor: pointer;
+      transition: opacity 100ms linear;
+    }
+
+    .join-btn:hover {
+      opacity: 0.85;
+    }
+
+    .phone-reveal {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      opacity: 0;
+      height: 0;
+      overflow: hidden;
+      transition: opacity 100ms linear;
+    }
+
+    .phone-reveal.active {
+      opacity: 1;
+      height: auto;
+      overflow: visible;
+    }
+
+    .phone-wrap .join-btn.hidden {
+      display: none;
+    }
+
     .phone-input {
       display: flex;
       align-items: center;
@@ -273,12 +313,15 @@
         <span class="line1">a members' club with no house.</span>
         <span class="line2">we go to <span class="pill"><span class="pill-text" id="rotating">film screenings</span></span> together.</span>
       </h1>
-      <div class="phone-wrap">
-        <form class="phone-input" id="phone-form">
-          <span class="phone-prefix"><span class="flag">🇬🇧</span> +44</span>
-          <input type="tel" id="phone" placeholder="22 2222 2222" autocomplete="tel">
-        </form>
-        <span class="phone-hint">enter your number to join.</span>
+      <div class="phone-wrap" id="phone-wrap">
+        <button class="join-btn" id="join-btn" type="button">Join the club →</button>
+        <div class="phone-reveal" id="phone-reveal">
+          <form class="phone-input" id="phone-form">
+            <span class="phone-prefix"><span class="flag">🇬🇧</span> +44</span>
+            <input type="tel" id="phone" placeholder="22 2222 2222" autocomplete="tel">
+          </form>
+          <span class="phone-hint">enter your number to join.</span>
+        </div>
       </div>
     </main>
 
@@ -319,7 +362,14 @@
       }, 150);
     }, 2500);
 
-    // Phone form
+    // Phone reveal + form
+    document.getElementById('join-btn').addEventListener('click', () => {
+      document.getElementById('join-btn').classList.add('hidden');
+      const reveal = document.getElementById('phone-reveal');
+      reveal.classList.add('active');
+      document.getElementById('phone').focus();
+    });
+
     document.getElementById('phone-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const num = document.getElementById('phone').value.trim();
