@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Culture Club</title>
+  <meta name="description" content="A members' club with no house. We go to culture together.">
+  <meta property="og:title" content="Culture Club">
+  <meta property="og:description" content="A members' club with no house. We go to culture together.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='50' fill='%23FF4400'/></svg>">
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #000000;
+      --text-primary: #FFFFFF;
+      --text-secondary: #A0A0A0;
+      --accent: #FF4400;
+      --accent-dim: rgba(255, 68, 0, 0.3);
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-family: var(--mono);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .page {
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+    }
+
+    /* Nav */
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .wordmark {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .nav-links a {
+      color: var(--text-primary);
+      text-decoration: none;
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 400;
+      transition: opacity 100ms linear;
+    }
+
+    .nav-links a:hover {
+      opacity: 0.7;
+    }
+
+    .nav-links a svg {
+      display: block;
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Hero */
+    .hero {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      gap: 80px;
+    }
+
+    .headline {
+      font-size: 24px;
+      font-weight: 400;
+      line-height: 1.5;
+      max-width: 720px;
+      text-transform: lowercase;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--accent-dim);
+      border-radius: 100px;
+      padding: 0 12px;
+      position: relative;
+      vertical-align: baseline;
+    }
+
+    .pill-text {
+      transition: opacity 100ms linear;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      border-radius: 100px;
+      padding: 0 32px;
+      height: 48px;
+      min-height: 44px;
+      cursor: pointer;
+      transition: opacity 100ms linear;
+    }
+
+    .cta:hover {
+      opacity: 0.85;
+    }
+
+    /* Footer */
+    footer {
+      flex-shrink: 0;
+      text-align: center;
+      padding-bottom: 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: opacity 100ms linear;
+    }
+
+    footer a:hover {
+      opacity: 0.7;
+    }
+
+    /* Desktop */
+    @media (min-width: 768px) {
+      .page {
+        padding: 32px 40px;
+      }
+
+      .headline {
+        font-size: 44px;
+        max-width: 900px;
+      }
+
+      .pill {
+        padding: 0 16px;
+      }
+
+      .hero {
+        gap: 100px;
+      }
+
+      .cta {
+        font-size: 18px;
+        height: 52px;
+        padding: 0 40px;
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .headline {
+        font-size: 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav>
+      <span class="wordmark">Culture Club</span>
+      <div class="nav-links">
+        <a href="#">about</a>
+        <a href="#" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="5"/>
+            <circle cx="12" cy="12" r="5"/>
+            <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+          </svg>
+        </a>
+      </div>
+    </nav>
+
+    <main class="hero">
+      <h1 class="headline">a members' club with no house. we go to <span class="pill"><span class="pill-text" id="rotating">film screenings</span></span> together.</h1>
+      <a class="cta" href="https://chat.whatsapp.com/">Join the club →</a>
+    </main>
+
+    <footer>
+      Powered by <a href="https://circuitapp.co">Circuit</a>
+    </footer>
+  </div>
+
+  <script>
+    const items = [
+      'film screenings',
+      'comedy nights',
+      'supper clubs',
+      'gallery openings',
+      'run clubs',
+      'late-night jazz',
+      'spoken word',
+      'open studios'
+    ];
+    let index = 0;
+    const el = document.getElementById('rotating');
+
+    setInterval(() => {
+      index = (index + 1) % items.length;
+      el.style.opacity = '0';
+      setTimeout(() => {
+        el.textContent = items[index];
+        el.style.opacity = '1';
+      }, 100);
+    }, 2500);
+  </script>
+</body>
+</html>
