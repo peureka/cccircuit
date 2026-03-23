@@ -115,24 +115,15 @@
     }
 
     .pill {
-      display: inline-block;
       background: var(--accent);
-      border: none;
       border-radius: 2px;
-      padding: 0.1em 0.5em;
-      vertical-align: baseline;
-      overflow: hidden;
-    }
-
-    .pill-inner {
-      display: block;
-      transition: transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      padding: 0.05em 0.35em;
+      position: relative;
+      display: inline;
     }
 
     .pill-text {
-      display: block;
-      white-space: nowrap;
-      text-align: center;
+      transition: opacity 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .cta {
@@ -251,7 +242,7 @@
     <main class="hero">
       <h1 class="headline">
         <span class="line1">a members' club with no house.</span>
-        <span class="line2">we go to <span class="pill"><span class="pill-inner" id="pill-inner"><span class="pill-text">film screenings</span><span class="pill-text" id="next-text"></span></span></span> together.</span>
+        <span class="line2">we go to <span class="pill"><span class="pill-text" id="rotating">film screenings</span></span> together.</span>
       </h1>
       <a class="cta" href="https://chat.whatsapp.com/">Join the club →</a>
     </main>
@@ -281,37 +272,15 @@
       'open studios'
     ];
     let index = 0;
-    const inner = document.getElementById('pill-inner');
-    const currentText = inner.children[0];
-    const nextText = inner.children[1];
-    const pill = inner.parentElement;
-
-    // Measure widest item and fix pill dimensions
-    let maxW = 0;
-    const original = currentText.textContent;
-    for (const item of items) {
-      currentText.textContent = item;
-      maxW = Math.max(maxW, currentText.scrollWidth);
-    }
-    currentText.textContent = original;
-    pill.style.width = Math.ceil(maxW + 2) + 'px';
-
-    // Lock pill height to one line's height
-    const lineH = currentText.offsetHeight;
-    pill.style.height = lineH + 'px';
+    const el = document.getElementById('rotating');
 
     setInterval(() => {
       index = (index + 1) % items.length;
-      nextText.textContent = items[index];
-      inner.style.transform = 'translateY(-' + lineH + 'px)';
-
+      el.style.opacity = '0';
       setTimeout(() => {
-        inner.style.transition = 'none';
-        inner.style.transform = 'translateY(0)';
-        currentText.textContent = items[index];
-        inner.offsetHeight;
-        inner.style.transition = 'transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1)';
-      }, 420);
+        el.textContent = items[index];
+        el.style.opacity = '1';
+      }, 150);
     }, 2500);
 
     // About modal
