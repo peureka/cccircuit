@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Culture Club — Admin</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #000; --text: #fff; --muted: #A0A0A0; --accent: #FF4400;
+      --surface: rgba(255,255,255,0.05); --border: rgba(255,68,0,0.3);
+      --mono: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
+    }
+    body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 14px; }
+
+    /* Auth gate */
+    .auth-gate {
+      height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 16px;
+    }
+    .auth-gate input {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      font-family: var(--mono); font-size: 14px; padding: 12px 16px; width: 280px; outline: none;
+    }
+    .auth-gate button { cursor: pointer; }
+
+    /* Layout */
+    .admin { display: none; max-width: 640px; margin: 0 auto; padding: 32px 24px 80px; }
+    .admin.visible { display: block; }
+    h1 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .stat { font-size: 12px; color: var(--muted); margin-bottom: 40px; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; }
+    .tab {
+      background: none; border: 1px solid var(--border); color: var(--muted);
+      font-family: var(--mono); font-size: 13px; padding: 8px 20px; cursor: pointer;
+      transition: all 100ms linear;
+    }
+    .tab:first-child { border-right: none; }
+    .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+    /* Form */
+    .form-section { margin-bottom: 24px; }
+    label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    input, select, textarea {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--mono); font-size: 14px;
+      padding: 10px 12px; outline: none; margin-bottom: 16px;
+    }
+    textarea { resize: vertical; min-height: 60px; }
+    select { cursor: pointer; }
+    select option { background: #111; }
+
+    /* Option blocks */
+    .option-block {
+      border: 1px solid rgba(255,255,255,0.08); padding: 16px; margin-bottom: 16px;
+      position: relative;
+    }
+    .option-block .option-label { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+    .remove-option {
+      position: absolute; top: 8px; right: 12px; background: none; border: none;
+      color: #666; font-family: var(--mono); font-size: 16px; cursor: pointer;
+    }
+    .remove-option:hover { color: var(--accent); }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+    .btn {
+      background: none; border: 1px solid var(--border); color: var(--text);
+      font-family: var(--mono); font-size: 13px; padding: 10px 20px;
+      cursor: pointer; transition: all 100ms linear;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-small { font-size: 12px; padding: 6px 14px; }
+
+    /* Preview */
+    .preview-frame {
+      width: 100%; height: 600px; border: 1px solid rgba(255,255,255,0.08);
+      background: #fff; margin-top: 24px; display: none;
+    }
+    .preview-frame.visible { display: block; }
+
+    /* Status */
+    .status { margin-top: 16px; font-size: 13px; min-height: 20px; }
+    .status.ok { color: var(--accent); }
+    .status.err { color: #ff4444; }
+  </style>
+</head>
+<body>
+
+<div class="auth-gate" id="auth-gate">
+  <p style="font-size:12px;color:var(--muted);">admin</p>
+  <input type="password" id="auth-input" placeholder="password" autofocus>
+  <button class="btn btn-primary" id="auth-btn">→</button>
+</div>
+
+<div class="admin" id="admin">
+  <h1>Culture Club</h1>
+  <div class="stat" id="stat">loading...</div>
+
+  <div class="tabs">
+    <button class="tab active" data-template="shortlist">shortlist</button>
+    <button class="tab" data-template="wildcard">wildcard</button>
+  </div>
+
+  <!-- Subject -->
+  <div class="form-section">
+    <label>subject</label>
+    <input type="text" id="subject" placeholder="Watch: Thursday.">
+  </div>
+
+  <!-- Shortlist fields -->
+  <div id="shortlist-fields">
+    <div class="form-section" style="display:flex;gap:12px;">
+      <div style="flex:1;">
+        <label>format</label>
+        <select id="format">
+          <option value="Watch">Watch</option>
+          <option value="Move">Move</option>
+          <option value="Eat">Eat</option>
+          <option value="See">See</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label>day</label>
+        <input type="text" id="day" placeholder="Thursday">
+      </div>
+    </div>
+
+    <div id="options-container">
+      <div class="option-block" data-index="0">
+        <div class="option-label">option 1</div>
+        <label>name</label>
+        <input type="text" class="opt-name" placeholder="Close-Up Film Centre">
+        <label>description</label>
+        <input type="text" class="opt-desc" placeholder="35mm screening of Paris, Texas">
+        <label>venue</label>
+        <input type="text" class="opt-venue" placeholder="Close-Up, Shoreditch">
+        <label>rsvp url</label>
+        <input type="url" class="opt-url" placeholder="https://meetcircuit.com/...">
+      </div>
+      <div class="option-block" data-index="1">
+        <div class="option-label">option 2</div>
+        <button class="remove-option" title="remove">×</button>
+        <label>name</label>
+        <input type="text" class="opt-name">
+        <label>description</label>
+        <input type="text" class="opt-desc">
+        <label>venue</label>
+        <input type="text" class="opt-venue">
+        <label>rsvp url</label>
+        <input type="url" class="opt-url">
+      </div>
+    </div>
+
+    <button class="btn btn-small" id="add-option">+ add option</button>
+  </div>
+
+  <!-- Wildcard fields -->
+  <div id="wildcard-fields" style="display:none;">
+    <div class="form-section">
+      <label>event name</label>
+      <input type="text" id="wc-name" placeholder="Dawn Swim at Hampstead Heath">
+      <label>description</label>
+      <input type="text" id="wc-desc" placeholder="Sunrise swim followed by breakfast at Parliament Hill Cafe">
+      <label>date</label>
+      <input type="text" id="wc-date" placeholder="Saturday 12 April">
+      <label>venue</label>
+      <input type="text" id="wc-venue" placeholder="Hampstead Heath Ponds, NW5">
+      <label>rsvp url</label>
+      <input type="url" id="wc-url" placeholder="https://meetcircuit.com/...">
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" id="preview-btn">preview</button>
+    <button class="btn btn-primary" id="send-btn">send broadcast</button>
+  </div>
+
+  <div class="status" id="status"></div>
+  <iframe class="preview-frame" id="preview-frame"></iframe>
+</div>
+
+<script>
+  let token = sessionStorage.getItem('cc_token') || '';
+  let template = 'shortlist';
+
+  // Auth
+  const gate = document.getElementById('auth-gate');
+  const admin = document.getElementById('admin');
+
+  function unlock(t) {
+    token = t;
+    sessionStorage.setItem('cc_token', t);
+    gate.style.display = 'none';
+    admin.classList.add('visible');
+    loadStats();
+  }
+
+  if (token) unlock(token);
+
+  document.getElementById('auth-btn').addEventListener('click', () => {
+    unlock(document.getElementById('auth-input').value);
+  });
+  document.getElementById('auth-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') unlock(document.getElementById('auth-input').value);
+  });
+
+  // Stats
+  async function loadStats() {
+    try {
+      const res = await fetch('/api/stats', { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) { document.getElementById('stat').textContent = 'auth failed'; return; }
+      const data = await res.json();
+      document.getElementById('stat').textContent = data.signupCount + ' signups';
+    } catch { document.getElementById('stat').textContent = '—'; }
+  }
+
+  // Tabs
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      template = tab.dataset.template;
+      document.getElementById('shortlist-fields').style.display = template === 'shortlist' ? 'block' : 'none';
+      document.getElementById('wildcard-fields').style.display = template === 'wildcard' ? 'block' : 'none';
+      document.getElementById('preview-frame').classList.remove('visible');
+    });
+  });
+
+  // Add/remove options
+  document.getElementById('add-option').addEventListener('click', () => {
+    const container = document.getElementById('options-container');
+    const count = container.children.length;
+    if (count >= 3) return;
+    const block = document.createElement('div');
+    block.className = 'option-block';
+    block.dataset.index = count;
+    block.innerHTML = `
+      <div class="option-label">option ${count + 1}</div>
+      <button class="remove-option" title="remove">×</button>
+      <label>name</label><input type="text" class="opt-name">
+      <label>description</label><input type="text" class="opt-desc">
+      <label>venue</label><input type="text" class="opt-venue">
+      <label>rsvp url</label><input type="url" class="opt-url">
+    `;
+    container.appendChild(block);
+    block.querySelector('.remove-option').addEventListener('click', () => { block.remove(); });
+  });
+
+  document.querySelectorAll('.remove-option').forEach(btn => {
+    btn.addEventListener('click', () => { btn.closest('.option-block').remove(); });
+  });
+
+  // Build payload
+  function buildPayload() {
+    const subject = document.getElementById('subject').value.trim();
+    if (!subject) return null;
+
+    if (template === 'shortlist') {
+      const format = document.getElementById('format').value;
+      const day = document.getElementById('day').value.trim();
+      const blocks = document.querySelectorAll('#options-container .option-block');
+      const options = [];
+      blocks.forEach(b => {
+        const name = b.querySelector('.opt-name').value.trim();
+        const description = b.querySelector('.opt-desc').value.trim();
+        const venue = b.querySelector('.opt-venue').value.trim();
+        const rsvpUrl = b.querySelector('.opt-url').value.trim();
+        if (name) options.push({ name, description, venue, rsvpUrl });
+      });
+      if (!options.length) return null;
+      return { template, subject, data: { format, day, options } };
+    }
+
+    if (template === 'wildcard') {
+      return {
+        template, subject,
+        data: {
+          name: document.getElementById('wc-name').value.trim(),
+          description: document.getElementById('wc-desc').value.trim(),
+          date: document.getElementById('wc-date').value.trim(),
+          venue: document.getElementById('wc-venue').value.trim(),
+          rsvpUrl: document.getElementById('wc-url').value.trim(),
+        }
+      };
+    }
+    return null;
+  }
+
+  // Preview
+  document.getElementById('preview-btn').addEventListener('click', async () => {
+    const payload = buildPayload();
+    if (!payload) { setStatus('fill in the fields.', 'err'); return; }
+    try {
+      const res = await fetch('/api/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      const frame = document.getElementById('preview-frame');
+      frame.classList.add('visible');
+      frame.srcdoc = data.html;
+      setStatus('');
+    } catch { setStatus('preview failed.', 'err'); }
+  });
+
+  // Send
+  document.getElementById('send-btn').addEventListener('click', async () => {
+    const payload = buildPayload();
+    if (!payload) { setStatus('fill in the fields.', 'err'); return; }
+    if (!confirm('send this broadcast to the full list?')) return;
+    setStatus('sending...');
+    try {
+      const res = await fetch('/api/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.ok) setStatus('sent. broadcast id: ' + data.broadcastId, 'ok');
+      else setStatus(data.error || 'failed.', 'err');
+    } catch { setStatus('send failed.', 'err'); }
+  });
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status' + (type ? ' ' + type : '');
+  }
+</script>
+</body>
+</html>
