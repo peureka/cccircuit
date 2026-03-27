@@ -1,6 +1,15 @@
 const { Resend } = require("resend");
+const admin = require("firebase-admin");
 const { renderShortlist, renderWildcard } = require("../lib/templates");
 
+if (!admin.apps.length) {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
+}
+
+const db = admin.firestore();
 const templates = { shortlist: renderShortlist, wildcard: renderWildcard };
 
 module.exports = async function handler(req, res) {
@@ -8,7 +17,6 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Auth check
   const secret = process.env.BROADCAST_SECRET;
   const auth = req.headers.authorization;
   if (!secret || auth !== `Bearer ${secret}`) {
@@ -46,8 +54,16 @@ module.exports = async function handler(req, res) {
       name: `${template}: ${subject}`,
     });
 
-    // Send the broadcast
     await resend.broadcasts.send(broadcast.id);
+
+    // Log to Firestore
+    await db.collection("broadcasts").add({
+      broadcastId: broadcast.id,
+      template,
+      subject,
+      data,
+      sentAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     return res.status(200).json({ ok: true, broadcastId: broadcast.id });
   } catch (err) {

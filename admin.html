@@ -12,82 +12,97 @@
       --surface: rgba(255,255,255,0.05); --border: rgba(255,68,0,0.3);
       --mono: "SF Mono", "JetBrains Mono", "Fira Code", monospace;
     }
-    body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 14px; }
+    body { background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 13px; }
 
-    /* Auth gate */
-    .auth-gate {
-      height: 100vh; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 16px;
-    }
-    .auth-gate input {
-      background: var(--surface); border: 1px solid var(--border); color: var(--text);
-      font-family: var(--mono); font-size: 14px; padding: 12px 16px; width: 280px; outline: none;
-    }
-    .auth-gate button { cursor: pointer; }
+    /* Auth */
+    .auth-gate { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+    .auth-gate input { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 14px; padding: 12px 16px; width: 280px; outline: none; }
 
     /* Layout */
-    .admin { display: none; max-width: 640px; margin: 0 auto; padding: 32px 24px 80px; }
+    .admin { display: none; max-width: 800px; margin: 0 auto; padding: 24px 24px 80px; }
     .admin.visible { display: block; }
-    h1 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-    .stat { font-size: 12px; color: var(--muted); margin-bottom: 40px; }
+    h1 { font-size: 18px; font-weight: 600; margin-bottom: 24px; }
 
-    /* Tabs */
-    .tabs { display: flex; gap: 0; margin-bottom: 24px; }
-    .tab {
-      background: none; border: 1px solid var(--border); color: var(--muted);
-      font-family: var(--mono); font-size: 13px; padding: 8px 20px; cursor: pointer;
-      transition: all 100ms linear;
-    }
-    .tab:first-child { border-right: none; }
-    .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    /* Nav tabs */
+    .nav { display: flex; gap: 0; margin-bottom: 32px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .nav-tab { background: none; border: none; color: var(--muted); font-family: var(--mono); font-size: 12px; padding: 10px 16px; cursor: pointer; border-bottom: 2px solid transparent; text-transform: uppercase; letter-spacing: 0.05em; }
+    .nav-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .nav-tab:hover { color: var(--text); }
 
-    /* Form */
-    .form-section { margin-bottom: 24px; }
-    label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
-    input, select, textarea {
-      width: 100%; background: var(--surface); border: 1px solid var(--border);
-      color: var(--text); font-family: var(--mono); font-size: 14px;
-      padding: 10px 12px; outline: none; margin-bottom: 16px;
-    }
-    textarea { resize: vertical; min-height: 60px; }
+    /* Panels */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Stats */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--surface); padding: 16px; }
+    .stat-value { font-size: 28px; font-weight: 600; margin-bottom: 4px; }
+    .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .last-broadcast { font-size: 12px; color: var(--muted); margin-top: 16px; }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 8px 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    td { padding: 8px 8px 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+    td a { color: var(--accent); text-decoration: none; }
+    td a:hover { text-decoration: underline; }
+
+    /* Forms */
+    .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+    .form-row > * { flex: 1; min-width: 120px; }
+    label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    input, select, textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 8px 10px; outline: none; }
+    textarea { resize: vertical; min-height: 50px; }
     select { cursor: pointer; }
     select option { background: #111; }
 
-    /* Option blocks */
-    .option-block {
-      border: 1px solid rgba(255,255,255,0.08); padding: 16px; margin-bottom: 16px;
-      position: relative;
-    }
-    .option-block .option-label { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
-    .remove-option {
-      position: absolute; top: 8px; right: 12px; background: none; border: none;
-      color: #666; font-family: var(--mono); font-size: 16px; cursor: pointer;
-    }
-    .remove-option:hover { color: var(--accent); }
-
     /* Buttons */
-    .btn-row { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
-    .btn {
-      background: none; border: 1px solid var(--border); color: var(--text);
-      font-family: var(--mono); font-size: 13px; padding: 10px 20px;
-      cursor: pointer; transition: all 100ms linear;
-    }
+    .btn { background: none; border: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 8px 16px; cursor: pointer; transition: all 100ms linear; }
     .btn:hover { border-color: var(--accent); }
     .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
     .btn-primary:hover { opacity: 0.85; }
-    .btn-small { font-size: 12px; padding: 6px 14px; }
+    .btn-danger { color: #ff4444; border-color: #ff4444; }
+    .btn-danger:hover { background: #ff4444; color: var(--bg); }
+    .btn-row { display: flex; gap: 8px; margin-top: 16px; }
+    .btn-small { font-size: 11px; padding: 4px 10px; }
 
-    /* Preview */
-    .preview-frame {
-      width: 100%; height: 600px; border: 1px solid rgba(255,255,255,0.08);
-      background: #fff; margin-top: 24px; display: none;
-    }
+    /* Search */
+    .search-row { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+    .search-row input { max-width: 300px; }
+
+    /* Broadcast composer */
+    .composer-tabs { display: flex; gap: 0; margin-bottom: 16px; }
+    .composer-tab { background: none; border: 1px solid var(--border); color: var(--muted); font-family: var(--mono); font-size: 12px; padding: 6px 16px; cursor: pointer; }
+    .composer-tab:first-child { border-right: none; }
+    .composer-tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+    .option-block { border: 1px solid rgba(255,255,255,0.08); padding: 12px; margin-bottom: 12px; position: relative; }
+    .option-label { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+    .remove-option { position: absolute; top: 6px; right: 8px; background: none; border: none; color: #666; font-family: var(--mono); font-size: 14px; cursor: pointer; }
+    .remove-option:hover { color: var(--accent); }
+
+    .preview-frame { width: 100%; height: 500px; border: 1px solid rgba(255,255,255,0.08); background: #fff; margin-top: 16px; display: none; }
     .preview-frame.visible { display: block; }
 
-    /* Status */
-    .status { margin-top: 16px; font-size: 13px; min-height: 20px; }
+    .status { margin-top: 12px; font-size: 12px; min-height: 16px; }
     .status.ok { color: var(--accent); }
     .status.err { color: #ff4444; }
+
+    /* Status badges */
+    .badge { font-size: 11px; padding: 2px 8px; display: inline-block; }
+    .badge-draft { color: var(--muted); border: 1px solid rgba(255,255,255,0.1); }
+    .badge-shortlisted { color: var(--accent); border: 1px solid var(--border); }
+    .badge-broadcast { color: #4CAF50; border: 1px solid rgba(76,175,80,0.3); }
+    .badge-completed { color: var(--muted); background: rgba(255,255,255,0.05); }
+
+    /* Section headers */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .section-title { font-size: 14px; font-weight: 600; }
+
+    /* Rotation indicator */
+    .rotation { display: flex; gap: 12px; margin-bottom: 24px; }
+    .rotation-item { font-size: 12px; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.08); }
+    .rotation-item.current { border-color: var(--accent); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -100,250 +115,384 @@
 
 <div class="admin" id="admin">
   <h1>Culture Club</h1>
-  <div class="stat" id="stat">loading...</div>
 
-  <div class="tabs">
-    <button class="tab active" data-template="shortlist">shortlist</button>
-    <button class="tab" data-template="wildcard">wildcard</button>
+  <div class="nav" id="nav">
+    <button class="nav-tab active" data-panel="dashboard">Dashboard</button>
+    <button class="nav-tab" data-panel="contacts">Contacts</button>
+    <button class="nav-tab" data-panel="broadcasts">Broadcasts</button>
+    <button class="nav-tab" data-panel="outings">Outings</button>
+    <button class="nav-tab" data-panel="venues">Venues</button>
   </div>
 
-  <!-- Subject -->
-  <div class="form-section">
-    <label>subject</label>
-    <input type="text" id="subject" placeholder="Watch: Thursday.">
+  <!-- DASHBOARD -->
+  <div class="panel active" id="panel-dashboard">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-value" id="s-total">—</div><div class="stat-label">total signups</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-week">—</div><div class="stat-label">this week</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-broadcasts">—</div><div class="stat-label">broadcasts sent</div></div>
+    </div>
+    <div class="last-broadcast" id="s-last">—</div>
   </div>
 
-  <!-- Shortlist fields -->
-  <div id="shortlist-fields">
-    <div class="form-section" style="display:flex;gap:12px;">
-      <div style="flex:1;">
-        <label>format</label>
-        <select id="format">
-          <option value="Watch">Watch</option>
-          <option value="Move">Move</option>
-          <option value="Eat">Eat</option>
-          <option value="See">See</option>
-        </select>
+  <!-- CONTACTS -->
+  <div class="panel" id="panel-contacts">
+    <div class="search-row">
+      <input type="text" id="contact-search" placeholder="search emails...">
+      <button class="btn btn-small" id="export-csv">export csv</button>
+    </div>
+    <table><thead><tr><th>email</th><th>joined</th></tr></thead><tbody id="contact-list"></tbody></table>
+  </div>
+
+  <!-- BROADCASTS -->
+  <div class="panel" id="panel-broadcasts">
+    <div class="section-header">
+      <span class="section-title">compose</span>
+    </div>
+
+    <div class="composer-tabs">
+      <button class="composer-tab active" data-tmpl="shortlist">shortlist</button>
+      <button class="composer-tab" data-tmpl="wildcard">wildcard</button>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <label>subject</label>
+      <input type="text" id="b-subject" placeholder="Watch: Thursday.">
+    </div>
+
+    <div id="shortlist-fields">
+      <div class="form-row">
+        <div><label>format</label><select id="b-format"><option>Watch</option><option>Move</option><option>Eat</option><option>See</option></select></div>
+        <div><label>day</label><input type="text" id="b-day" placeholder="Thursday"></div>
       </div>
-      <div style="flex:1;">
-        <label>day</label>
-        <input type="text" id="day" placeholder="Thursday">
+      <div id="b-options">
+        <div class="option-block"><div class="option-label">option 1</div><label>name</label><input class="opt-name"><label>description</label><input class="opt-desc"><label>venue</label><input class="opt-venue"><label>rsvp url</label><input class="opt-url"></div>
+        <div class="option-block"><div class="option-label">option 2</div><button class="remove-option">×</button><label>name</label><input class="opt-name"><label>description</label><input class="opt-desc"><label>venue</label><input class="opt-venue"><label>rsvp url</label><input class="opt-url"></div>
+      </div>
+      <button class="btn btn-small" id="add-option">+ add option</button>
+    </div>
+
+    <div id="wildcard-fields" style="display:none;">
+      <label>event name</label><input id="wc-name">
+      <label>description</label><input id="wc-desc">
+      <label>date</label><input id="wc-date">
+      <label>venue</label><input id="wc-venue">
+      <label>rsvp url</label><input id="wc-url">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn" id="preview-btn">preview</button>
+      <button class="btn btn-primary" id="send-btn">send broadcast</button>
+    </div>
+    <div class="status" id="b-status"></div>
+    <iframe class="preview-frame" id="preview-frame"></iframe>
+
+    <div class="section-header" style="margin-top:40px;">
+      <span class="section-title">history</span>
+    </div>
+    <table><thead><tr><th>date</th><th>subject</th><th>template</th></tr></thead><tbody id="broadcast-list"></tbody></table>
+  </div>
+
+  <!-- OUTINGS -->
+  <div class="panel" id="panel-outings">
+    <div class="rotation" id="rotation"></div>
+
+    <div class="section-header">
+      <span class="section-title">upcoming</span>
+      <button class="btn btn-small" id="add-outing-btn">+ add outing</button>
+    </div>
+
+    <div id="outing-form" style="display:none;margin-bottom:24px;border:1px solid rgba(255,255,255,0.08);padding:16px;">
+      <div class="form-row">
+        <div><label>name</label><input id="o-name"></div>
+        <div><label>format</label><select id="o-format"><option>Watch</option><option>Move</option><option>Eat</option><option>See</option><option>Wildcard</option></select></div>
+      </div>
+      <div class="form-row">
+        <div><label>day</label><input id="o-day" placeholder="Thursday"></div>
+        <div><label>date</label><input id="o-date" placeholder="2026-04-03"></div>
+      </div>
+      <div class="form-row">
+        <div><label>venue</label><input id="o-venue"></div>
+        <div><label>neighbourhood</label><input id="o-neighbourhood"></div>
+      </div>
+      <div class="form-row">
+        <div><label>rsvp url</label><input id="o-rsvp"></div>
+        <div><label>status</label><select id="o-status"><option>draft</option><option>shortlisted</option><option>broadcast</option><option>completed</option></select></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-small" id="save-outing">save</button>
+        <button class="btn btn-small" id="cancel-outing">cancel</button>
       </div>
     </div>
 
-    <div id="options-container">
-      <div class="option-block" data-index="0">
-        <div class="option-label">option 1</div>
-        <label>name</label>
-        <input type="text" class="opt-name" placeholder="Close-Up Film Centre">
-        <label>description</label>
-        <input type="text" class="opt-desc" placeholder="35mm screening of Paris, Texas">
-        <label>venue</label>
-        <input type="text" class="opt-venue" placeholder="Close-Up, Shoreditch">
-        <label>rsvp url</label>
-        <input type="url" class="opt-url" placeholder="https://meetcircuit.com/...">
+    <table><thead><tr><th>date</th><th>format</th><th>name</th><th>venue</th><th>status</th><th></th></tr></thead><tbody id="outing-list"></tbody></table>
+  </div>
+
+  <!-- VENUES -->
+  <div class="panel" id="panel-venues">
+    <div class="section-header">
+      <span class="section-title">directory</span>
+      <button class="btn btn-small" id="add-venue-btn">+ add venue</button>
+    </div>
+
+    <div id="venue-form" style="display:none;margin-bottom:24px;border:1px solid rgba(255,255,255,0.08);padding:16px;">
+      <div class="form-row">
+        <div><label>name</label><input id="v-name"></div>
+        <div><label>neighbourhood</label><input id="v-neighbourhood"></div>
       </div>
-      <div class="option-block" data-index="1">
-        <div class="option-label">option 2</div>
-        <button class="remove-option" title="remove">×</button>
-        <label>name</label>
-        <input type="text" class="opt-name">
-        <label>description</label>
-        <input type="text" class="opt-desc">
-        <label>venue</label>
-        <input type="text" class="opt-venue">
-        <label>rsvp url</label>
-        <input type="url" class="opt-url">
+      <div class="form-row">
+        <div><label>format</label><select id="v-format"><option value="">any</option><option>Watch</option><option>Move</option><option>Eat</option><option>See</option></select></div>
+        <div><label>contact</label><input id="v-contact"></div>
+      </div>
+      <div><label>notes</label><textarea id="v-notes"></textarea></div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-small" id="save-venue">save</button>
+        <button class="btn btn-small" id="cancel-venue">cancel</button>
       </div>
     </div>
 
-    <button class="btn btn-small" id="add-option">+ add option</button>
+    <table><thead><tr><th>name</th><th>neighbourhood</th><th>format</th><th>contact</th><th>notes</th><th></th></tr></thead><tbody id="venue-list"></tbody></table>
   </div>
-
-  <!-- Wildcard fields -->
-  <div id="wildcard-fields" style="display:none;">
-    <div class="form-section">
-      <label>event name</label>
-      <input type="text" id="wc-name" placeholder="Dawn Swim at Hampstead Heath">
-      <label>description</label>
-      <input type="text" id="wc-desc" placeholder="Sunrise swim followed by breakfast at Parliament Hill Cafe">
-      <label>date</label>
-      <input type="text" id="wc-date" placeholder="Saturday 12 April">
-      <label>venue</label>
-      <input type="text" id="wc-venue" placeholder="Hampstead Heath Ponds, NW5">
-      <label>rsvp url</label>
-      <input type="url" id="wc-url" placeholder="https://meetcircuit.com/...">
-    </div>
-  </div>
-
-  <div class="btn-row">
-    <button class="btn" id="preview-btn">preview</button>
-    <button class="btn btn-primary" id="send-btn">send broadcast</button>
-  </div>
-
-  <div class="status" id="status"></div>
-  <iframe class="preview-frame" id="preview-frame"></iframe>
 </div>
 
 <script>
-  let token = sessionStorage.getItem('cc_token') || '';
-  let template = 'shortlist';
+let token = sessionStorage.getItem('cc_token') || '';
+let broadcastTemplate = 'shortlist';
+let editingOutingId = null;
+let editingVenueId = null;
 
-  // Auth
-  const gate = document.getElementById('auth-gate');
-  const admin = document.getElementById('admin');
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
 
-  async function tryUnlock(t) {
-    try {
-      const res = await fetch('/api/stats', { headers: { Authorization: 'Bearer ' + t } });
-      if (!res.ok) {
-        document.getElementById('auth-input').value = '';
-        document.getElementById('auth-input').placeholder = 'wrong password';
-        return;
-      }
-      token = t;
-      sessionStorage.setItem('cc_token', t);
-      gate.style.display = 'none';
-      admin.classList.add('visible');
-      const data = await res.json();
-      document.getElementById('stat').textContent = data.signupCount + ' signups';
-    } catch {
-      document.getElementById('auth-input').placeholder = 'connection error';
-    }
-  }
+function api(path, opts = {}) {
+  return fetch(path, { ...opts, headers: { ...opts.headers, Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } });
+}
 
-  if (token) tryUnlock(token);
+// AUTH
+async function tryUnlock(t) {
+  try {
+    const res = await api('/api/stats');
+    if (!res.ok) { $('#auth-input').value = ''; $('#auth-input').placeholder = 'wrong password'; return; }
+    token = t; sessionStorage.setItem('cc_token', t);
+    $('#auth-gate').style.display = 'none';
+    $('#admin').classList.add('visible');
+    loadDashboard();
+  } catch { $('#auth-input').placeholder = 'connection error'; }
+}
+if (token) tryUnlock(token);
+$('#auth-btn').addEventListener('click', () => tryUnlock($('#auth-input').value.trim()));
+$('#auth-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock($('#auth-input').value.trim()); });
 
-  document.getElementById('auth-btn').addEventListener('click', () => {
-    tryUnlock(document.getElementById('auth-input').value.trim());
+// NAV
+$$('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.nav-tab').forEach(t => t.classList.remove('active'));
+    $$('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    $(`#panel-${tab.dataset.panel}`).classList.add('active');
+    if (tab.dataset.panel === 'dashboard') loadDashboard();
+    if (tab.dataset.panel === 'contacts') loadContacts();
+    if (tab.dataset.panel === 'broadcasts') loadBroadcastHistory();
+    if (tab.dataset.panel === 'outings') loadOutings();
+    if (tab.dataset.panel === 'venues') loadVenues();
   });
-  document.getElementById('auth-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') tryUnlock(document.getElementById('auth-input').value.trim());
-  });
+});
 
-  // Stats
-  async function loadStats() {
-    try {
-      const res = await fetch('/api/stats', { headers: { Authorization: 'Bearer ' + token } });
-      if (!res.ok) { document.getElementById('stat').textContent = 'auth failed'; return; }
-      const data = await res.json();
-      document.getElementById('stat').textContent = data.signupCount + ' signups';
-    } catch { document.getElementById('stat').textContent = '—'; }
+// DASHBOARD
+async function loadDashboard() {
+  const res = await api('/api/stats');
+  const d = await res.json();
+  $('#s-total').textContent = d.signupCount ?? '—';
+  $('#s-week').textContent = d.weeklySignups ?? '—';
+  $('#s-broadcasts').textContent = d.broadcastCount ?? '—';
+  if (d.lastBroadcast) {
+    const date = d.lastBroadcast.sentAt ? new Date(d.lastBroadcast.sentAt).toLocaleDateString('en-GB') : '';
+    $('#s-last').textContent = `last broadcast: "${d.lastBroadcast.subject}" (${d.lastBroadcast.template}) — ${date}`;
+  } else {
+    $('#s-last').textContent = 'no broadcasts sent yet.';
   }
+}
 
-  // Tabs
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      template = tab.dataset.template;
-      document.getElementById('shortlist-fields').style.display = template === 'shortlist' ? 'block' : 'none';
-      document.getElementById('wildcard-fields').style.display = template === 'wildcard' ? 'block' : 'none';
-      document.getElementById('preview-frame').classList.remove('visible');
+// CONTACTS
+let allContacts = [];
+async function loadContacts() {
+  const res = await api('/api/contacts');
+  const d = await res.json();
+  allContacts = d.contacts || [];
+  renderContacts(allContacts);
+}
+function renderContacts(list) {
+  $('#contact-list').innerHTML = list.map(c => {
+    const date = c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—';
+    return `<tr><td>${esc(c.email)}</td><td style="color:var(--muted)">${date}</td></tr>`;
+  }).join('');
+}
+$('#contact-search').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase();
+  renderContacts(allContacts.filter(c => c.email.includes(q)));
+});
+$('#export-csv').addEventListener('click', () => {
+  const csv = 'email,joined\n' + allContacts.map(c => `${c.email},${c.created_at || ''}`).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `cccircuit-contacts-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+});
+
+// BROADCASTS
+// Composer tabs
+$$('.composer-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    $$('.composer-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    broadcastTemplate = tab.dataset.tmpl;
+    $('#shortlist-fields').style.display = broadcastTemplate === 'shortlist' ? 'block' : 'none';
+    $('#wildcard-fields').style.display = broadcastTemplate === 'wildcard' ? 'block' : 'none';
+    $('#preview-frame').classList.remove('visible');
+  });
+});
+
+// Add/remove options
+$('#add-option').addEventListener('click', () => {
+  const c = $('#b-options'); if (c.children.length >= 3) return;
+  const n = c.children.length + 1;
+  const b = document.createElement('div'); b.className = 'option-block';
+  b.innerHTML = `<div class="option-label">option ${n}</div><button class="remove-option">×</button><label>name</label><input class="opt-name"><label>description</label><input class="opt-desc"><label>venue</label><input class="opt-venue"><label>rsvp url</label><input class="opt-url">`;
+  c.appendChild(b);
+  b.querySelector('.remove-option').addEventListener('click', () => b.remove());
+});
+$$('.remove-option').forEach(b => b.addEventListener('click', () => b.closest('.option-block').remove()));
+
+function buildBroadcastPayload() {
+  const subject = $('#b-subject').value.trim();
+  if (!subject) return null;
+  if (broadcastTemplate === 'shortlist') {
+    const format = $('#b-format').value, day = $('#b-day').value.trim();
+    const options = [];
+    $$('#b-options .option-block').forEach(b => {
+      const name = b.querySelector('.opt-name').value.trim();
+      if (name) options.push({ name, description: b.querySelector('.opt-desc').value.trim(), venue: b.querySelector('.opt-venue').value.trim(), rsvpUrl: b.querySelector('.opt-url').value.trim() });
     });
-  });
-
-  // Add/remove options
-  document.getElementById('add-option').addEventListener('click', () => {
-    const container = document.getElementById('options-container');
-    const count = container.children.length;
-    if (count >= 3) return;
-    const block = document.createElement('div');
-    block.className = 'option-block';
-    block.dataset.index = count;
-    block.innerHTML = `
-      <div class="option-label">option ${count + 1}</div>
-      <button class="remove-option" title="remove">×</button>
-      <label>name</label><input type="text" class="opt-name">
-      <label>description</label><input type="text" class="opt-desc">
-      <label>venue</label><input type="text" class="opt-venue">
-      <label>rsvp url</label><input type="url" class="opt-url">
-    `;
-    container.appendChild(block);
-    block.querySelector('.remove-option').addEventListener('click', () => { block.remove(); });
-  });
-
-  document.querySelectorAll('.remove-option').forEach(btn => {
-    btn.addEventListener('click', () => { btn.closest('.option-block').remove(); });
-  });
-
-  // Build payload
-  function buildPayload() {
-    const subject = document.getElementById('subject').value.trim();
-    if (!subject) return null;
-
-    if (template === 'shortlist') {
-      const format = document.getElementById('format').value;
-      const day = document.getElementById('day').value.trim();
-      const blocks = document.querySelectorAll('#options-container .option-block');
-      const options = [];
-      blocks.forEach(b => {
-        const name = b.querySelector('.opt-name').value.trim();
-        const description = b.querySelector('.opt-desc').value.trim();
-        const venue = b.querySelector('.opt-venue').value.trim();
-        const rsvpUrl = b.querySelector('.opt-url').value.trim();
-        if (name) options.push({ name, description, venue, rsvpUrl });
-      });
-      if (!options.length) return null;
-      return { template, subject, data: { format, day, options } };
-    }
-
-    if (template === 'wildcard') {
-      return {
-        template, subject,
-        data: {
-          name: document.getElementById('wc-name').value.trim(),
-          description: document.getElementById('wc-desc').value.trim(),
-          date: document.getElementById('wc-date').value.trim(),
-          venue: document.getElementById('wc-venue').value.trim(),
-          rsvpUrl: document.getElementById('wc-url').value.trim(),
-        }
-      };
-    }
-    return null;
+    if (!options.length) return null;
+    return { template: 'shortlist', subject, data: { format, day, options } };
   }
+  return { template: 'wildcard', subject, data: { name: $('#wc-name').value.trim(), description: $('#wc-desc').value.trim(), date: $('#wc-date').value.trim(), venue: $('#wc-venue').value.trim(), rsvpUrl: $('#wc-url').value.trim() } };
+}
 
-  // Preview
-  document.getElementById('preview-btn').addEventListener('click', async () => {
-    const payload = buildPayload();
-    if (!payload) { setStatus('fill in the fields.', 'err'); return; }
-    try {
-      const res = await fetch('/api/preview', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      const frame = document.getElementById('preview-frame');
-      frame.classList.add('visible');
-      frame.srcdoc = data.html;
-      setStatus('');
-    } catch { setStatus('preview failed.', 'err'); }
-  });
+$('#preview-btn').addEventListener('click', async () => {
+  const p = buildBroadcastPayload();
+  if (!p) { setStatus('b-status', 'fill in the fields.', 'err'); return; }
+  const res = await api('/api/preview', { method: 'POST', body: JSON.stringify(p) });
+  const d = await res.json();
+  const f = $('#preview-frame'); f.classList.add('visible'); f.srcdoc = d.html;
+  setStatus('b-status', '');
+});
 
-  // Send
-  document.getElementById('send-btn').addEventListener('click', async () => {
-    const payload = buildPayload();
-    if (!payload) { setStatus('fill in the fields.', 'err'); return; }
-    if (!confirm('send this broadcast to the full list?')) return;
-    setStatus('sending...');
-    try {
-      const res = await fetch('/api/broadcast', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (data.ok) setStatus('sent. broadcast id: ' + data.broadcastId, 'ok');
-      else setStatus(data.error || 'failed.', 'err');
-    } catch { setStatus('send failed.', 'err'); }
-  });
+$('#send-btn').addEventListener('click', async () => {
+  const p = buildBroadcastPayload();
+  if (!p) { setStatus('b-status', 'fill in the fields.', 'err'); return; }
+  if (!confirm('send this broadcast to the full list?')) return;
+  setStatus('b-status', 'sending...');
+  try {
+    const res = await api('/api/broadcast', { method: 'POST', body: JSON.stringify(p) });
+    const d = await res.json();
+    if (d.ok) { setStatus('b-status', 'sent.', 'ok'); loadBroadcastHistory(); }
+    else setStatus('b-status', d.error || 'failed.', 'err');
+  } catch { setStatus('b-status', 'send failed.', 'err'); }
+});
 
-  function setStatus(msg, type) {
-    const el = document.getElementById('status');
-    el.textContent = msg;
-    el.className = 'status' + (type ? ' ' + type : '');
-  }
+async function loadBroadcastHistory() {
+  const res = await api('/api/stats');
+  // We need a separate endpoint for history, but for now use broadcasts collection
+  // Actually let's fetch from the stats endpoint which has last broadcast info
+  // For full history we'd need another endpoint — for now just show what we have
+  // TODO: add /api/broadcasts GET endpoint
+}
+
+// OUTINGS
+const formats = ['Watch', 'Move', 'Eat', 'See'];
+function currentFormat() {
+  const weekNum = Math.floor((Date.now() - new Date('2026-03-30').getTime()) / (7 * 86400000));
+  return formats[((weekNum % 4) + 4) % 4];
+}
+
+async function loadOutings() {
+  // Rotation indicator
+  const cur = currentFormat();
+  $('#rotation').innerHTML = formats.map(f => `<div class="rotation-item${f === cur ? ' current' : ''}">${f}</div>`).join('');
+
+  const res = await api('/api/outings');
+  const d = await res.json();
+  $('#outing-list').innerHTML = (d.outings || []).map(o => `<tr>
+    <td style="color:var(--muted)">${esc(o.date)}</td>
+    <td>${esc(o.format)}</td>
+    <td>${esc(o.name)}</td>
+    <td style="color:var(--muted)">${esc(o.venue)}</td>
+    <td><span class="badge badge-${o.status}">${o.status}</span></td>
+    <td><button class="btn btn-small btn-danger" onclick="deleteOuting('${o.id}')">×</button></td>
+  </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted)">no outings yet.</td></tr>';
+}
+
+$('#add-outing-btn').addEventListener('click', () => {
+  editingOutingId = null;
+  ['o-name','o-day','o-date','o-venue','o-neighbourhood','o-rsvp'].forEach(id => $(`#${id}`).value = '');
+  $('#o-format').value = currentFormat();
+  $('#o-status').value = 'draft';
+  $('#outing-form').style.display = 'block';
+});
+$('#cancel-outing').addEventListener('click', () => { $('#outing-form').style.display = 'none'; });
+$('#save-outing').addEventListener('click', async () => {
+  const body = { name: $('#o-name').value.trim(), format: $('#o-format').value, day: $('#o-day').value.trim(), date: $('#o-date').value.trim(), venue: $('#o-venue').value.trim(), neighbourhood: $('#o-neighbourhood').value.trim(), rsvpUrl: $('#o-rsvp').value.trim(), status: $('#o-status').value };
+  if (!body.name) return;
+  if (editingOutingId) body.id = editingOutingId;
+  await api('/api/outings', { method: editingOutingId ? 'PUT' : 'POST', body: JSON.stringify(body) });
+  $('#outing-form').style.display = 'none';
+  loadOutings();
+});
+window.deleteOuting = async (id) => {
+  if (!confirm('delete this outing?')) return;
+  await api('/api/outings', { method: 'DELETE', body: JSON.stringify({ id }) });
+  loadOutings();
+};
+
+// VENUES
+async function loadVenues() {
+  const res = await api('/api/venues');
+  const d = await res.json();
+  $('#venue-list').innerHTML = (d.venues || []).map(v => `<tr>
+    <td>${esc(v.name)}</td>
+    <td style="color:var(--muted)">${esc(v.neighbourhood)}</td>
+    <td>${esc(v.format)}</td>
+    <td style="color:var(--muted)">${esc(v.contact)}</td>
+    <td style="color:var(--muted);font-size:11px;">${esc(v.notes)}</td>
+    <td><button class="btn btn-small btn-danger" onclick="deleteVenue('${v.id}')">×</button></td>
+  </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted)">no venues yet.</td></tr>';
+}
+
+$('#add-venue-btn').addEventListener('click', () => {
+  editingVenueId = null;
+  ['v-name','v-neighbourhood','v-contact','v-notes'].forEach(id => $(`#${id}`).value = '');
+  $('#v-format').value = '';
+  $('#venue-form').style.display = 'block';
+});
+$('#cancel-venue').addEventListener('click', () => { $('#venue-form').style.display = 'none'; });
+$('#save-venue').addEventListener('click', async () => {
+  const body = { name: $('#v-name').value.trim(), neighbourhood: $('#v-neighbourhood').value.trim(), format: $('#v-format').value, contact: $('#v-contact').value.trim(), notes: $('#v-notes').value.trim() };
+  if (!body.name) return;
+  if (editingVenueId) body.id = editingVenueId;
+  await api('/api/venues', { method: editingVenueId ? 'PUT' : 'POST', body: JSON.stringify(body) });
+  $('#venue-form').style.display = 'none';
+  loadVenues();
+});
+window.deleteVenue = async (id) => {
+  if (!confirm('delete this venue?')) return;
+  await api('/api/venues', { method: 'DELETE', body: JSON.stringify({ id }) });
+  loadVenues();
+};
+
+// Helpers
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function setStatus(id, msg, type) { const el = $(`#${id}`); el.textContent = msg; el.className = 'status' + (type ? ' ' + type : ''); }
 </script>
 </body>
 </html>
