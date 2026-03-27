@@ -23,7 +23,7 @@ module.exports = async function handler(req, res) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const { template, subject, data } = req.body || {};
+  const { template, subject, data, outingIds } = req.body || {};
   if (!template || !subject || !data) {
     return res.status(400).json({ error: "Missing template, subject, or data" });
   }
@@ -62,8 +62,18 @@ module.exports = async function handler(req, res) {
       template,
       subject,
       data,
+      outingIds: outingIds || [],
       sentAt: admin.firestore.FieldValue.serverTimestamp(),
     });
+
+    // Update outing statuses to "broadcast"
+    if (outingIds && outingIds.length > 0) {
+      const batch = db.batch();
+      for (const oid of outingIds) {
+        batch.update(db.collection("outings").doc(oid), { status: "broadcast" });
+      }
+      await batch.commit();
+    }
 
     return res.status(200).json({ ok: true, broadcastId: broadcast.id });
   } catch (err) {

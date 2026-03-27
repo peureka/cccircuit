@@ -138,7 +138,15 @@
   <div class="panel" id="panel-contacts">
     <div class="search-row">
       <input type="text" id="contact-search" placeholder="search emails...">
+      <button class="btn btn-small" id="add-contact-btn">+ add</button>
       <button class="btn btn-small" id="export-csv">export csv</button>
+    </div>
+    <div id="add-contact-form" style="display:none;margin-bottom:16px;">
+      <div class="form-row" style="align-items:flex-end;">
+        <div style="flex:3;"><label>email</label><input type="email" id="new-contact-email" placeholder="someone@email.com"></div>
+        <div style="flex:0;"><button class="btn btn-primary btn-small" id="save-contact">add</button></div>
+      </div>
+      <div class="status" id="contact-status"></div>
     </div>
     <table><thead><tr><th>email</th><th>joined</th></tr></thead><tbody id="contact-list"></tbody></table>
   </div>
@@ -198,7 +206,10 @@
 
     <div class="section-header">
       <span class="section-title">upcoming</span>
-      <button class="btn btn-small" id="add-outing-btn">+ add outing</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-small" id="broadcast-selected-btn" style="display:none;">broadcast selected →</button>
+        <button class="btn btn-small" id="add-outing-btn">+ add outing</button>
+      </div>
     </div>
 
     <div id="outing-form" style="display:none;margin-bottom:24px;border:1px solid rgba(255,255,255,0.08);padding:16px;">
@@ -211,7 +222,7 @@
         <div><label>date</label><input id="o-date" placeholder="2026-04-03"></div>
       </div>
       <div class="form-row">
-        <div><label>venue</label><input id="o-venue"></div>
+        <div><label>venue</label><input id="o-venue" list="venue-datalist"><datalist id="venue-datalist"></datalist></div>
         <div><label>neighbourhood</label><input id="o-neighbourhood"></div>
       </div>
       <div class="form-row">
@@ -224,7 +235,7 @@
       </div>
     </div>
 
-    <table><thead><tr><th>date</th><th>format</th><th>name</th><th>venue</th><th>status</th><th></th></tr></thead><tbody id="outing-list"></tbody></table>
+    <table><thead><tr><th style="width:30px;"></th><th>date</th><th>format</th><th>name</th><th>venue</th><th>status</th><th></th></tr></thead><tbody id="outing-list"></tbody></table>
   </div>
 
   <!-- VENUES -->
@@ -259,6 +270,9 @@ let token = sessionStorage.getItem('cc_token') || '';
 let broadcastTemplate = 'shortlist';
 let editingOutingId = null;
 let editingVenueId = null;
+let pendingOutingIds = []; // outing IDs to link to broadcast
+let allOutings = [];
+let allVenues = [];
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
@@ -339,6 +353,29 @@ $('#export-csv').addEventListener('click', () => {
   a.click();
 });
 
+// Add contact
+$('#add-contact-btn').addEventListener('click', () => {
+  const form = $('#add-contact-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (form.style.display === 'block') $('#new-contact-email').focus();
+});
+$('#save-contact').addEventListener('click', async () => {
+  const email = $('#new-contact-email').value.trim();
+  if (!email) return;
+  setStatus('contact-status', 'adding...');
+  try {
+    const res = await api('/api/contacts', { method: 'POST', body: JSON.stringify({ email }) });
+    const d = await res.json();
+    if (d.ok) {
+      setStatus('contact-status', d.duplicate ? 'already on the list.' : 'added + synced to resend.', 'ok');
+      $('#new-contact-email').value = '';
+      loadContacts();
+    } else {
+      setStatus('contact-status', d.error || 'failed.', 'err');
+    }
+  } catch { setStatus('contact-status', 'failed.', 'err'); }
+});
+
 // BROADCASTS
 // Composer tabs
 $$('.composer-tab').forEach(tab => {
@@ -392,21 +429,29 @@ $('#send-btn').addEventListener('click', async () => {
   const p = buildBroadcastPayload();
   if (!p) { setStatus('b-status', 'fill in the fields.', 'err'); return; }
   if (!confirm('send this broadcast to the full list?')) return;
+  if (pendingOutingIds.length) p.outingIds = pendingOutingIds;
   setStatus('b-status', 'sending...');
   try {
     const res = await api('/api/broadcast', { method: 'POST', body: JSON.stringify(p) });
     const d = await res.json();
-    if (d.ok) { setStatus('b-status', 'sent.', 'ok'); loadBroadcastHistory(); }
+    if (d.ok) {
+      setStatus('b-status', 'sent.', 'ok');
+      pendingOutingIds = [];
+      loadBroadcastHistory();
+    }
     else setStatus('b-status', d.error || 'failed.', 'err');
   } catch { setStatus('b-status', 'send failed.', 'err'); }
 });
 
 async function loadBroadcastHistory() {
-  const res = await api('/api/stats');
-  // We need a separate endpoint for history, but for now use broadcasts collection
-  // Actually let's fetch from the stats endpoint which has last broadcast info
-  // For full history we'd need another endpoint — for now just show what we have
-  // TODO: add /api/broadcasts GET endpoint
+  try {
+    const res = await api('/api/broadcast-history');
+    const d = await res.json();
+    $('#broadcast-list').innerHTML = (d.broadcasts || []).map(b => {
+      const date = b.sentAt ? new Date(b.sentAt).toLocaleDateString('en-GB') : '—';
+      return `<tr><td style="color:var(--muted)">${date}</td><td>${esc(b.subject)}</td><td style="color:var(--muted)">${b.template}</td></tr>`;
+    }).join('') || '<tr><td colspan="3" style="color:var(--muted)">no broadcasts yet.</td></tr>';
+  } catch {}
 }
 
 // OUTINGS
@@ -417,21 +462,128 @@ function currentFormat() {
 }
 
 async function loadOutings() {
-  // Rotation indicator
   const cur = currentFormat();
   $('#rotation').innerHTML = formats.map(f => `<div class="rotation-item${f === cur ? ' current' : ''}">${f}</div>`).join('');
 
   const res = await api('/api/outings');
   const d = await res.json();
-  $('#outing-list').innerHTML = (d.outings || []).map(o => `<tr>
-    <td style="color:var(--muted)">${esc(o.date)}</td>
-    <td>${esc(o.format)}</td>
-    <td>${esc(o.name)}</td>
-    <td style="color:var(--muted)">${esc(o.venue)}</td>
-    <td><span class="badge badge-${o.status}">${o.status}</span></td>
-    <td><button class="btn btn-small btn-danger" onclick="deleteOuting('${o.id}')">×</button></td>
-  </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted)">no outings yet.</td></tr>';
+  allOutings = d.outings || [];
+  renderOutings();
+
+  // Load venues for datalist
+  try {
+    const vres = await api('/api/venues');
+    const vd = await vres.json();
+    allVenues = vd.venues || [];
+    $('#venue-datalist').innerHTML = allVenues.map(v => `<option value="${esc(v.name)}" data-neighbourhood="${esc(v.neighbourhood)}">`).join('');
+  } catch {}
 }
+
+function renderOutings() {
+  const selected = new Set(Array.from($$('.outing-check:checked')).map(cb => cb.value));
+  $('#outing-list').innerHTML = allOutings.map(o => {
+    const canSelect = o.status === 'draft' || o.status === 'shortlisted';
+    const canComplete = o.status === 'broadcast';
+    return `<tr>
+      <td>${canSelect ? `<input type="checkbox" class="outing-check" value="${o.id}" ${selected.has(o.id) ? 'checked' : ''}>` : ''}</td>
+      <td style="color:var(--muted)">${esc(o.date)}</td>
+      <td>${esc(o.format)}</td>
+      <td>${esc(o.name)}</td>
+      <td style="color:var(--muted)">${esc(o.venue)}</td>
+      <td><span class="badge badge-${o.status}">${o.status}</span></td>
+      <td style="white-space:nowrap;">
+        ${canComplete ? `<button class="btn btn-small" onclick="completeOuting('${o.id}')">done</button>` : ''}
+        <button class="btn btn-small btn-danger" onclick="deleteOuting('${o.id}')">×</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="color:var(--muted)">no outings yet.</td></tr>';
+
+  // Bind checkbox change to show/hide broadcast button
+  $$('.outing-check').forEach(cb => {
+    cb.addEventListener('change', updateBroadcastSelectedBtn);
+  });
+  updateBroadcastSelectedBtn();
+}
+
+function updateBroadcastSelectedBtn() {
+  const checked = $$('.outing-check:checked');
+  $('#broadcast-selected-btn').style.display = checked.length > 0 ? 'inline-block' : 'none';
+}
+
+window.completeOuting = async (id) => {
+  await api('/api/outings', { method: 'PUT', body: JSON.stringify({ id, status: 'completed' }) });
+  loadOutings();
+};
+
+// Broadcast selected outings → pre-fill composer
+$('#broadcast-selected-btn').addEventListener('click', () => {
+  const checked = Array.from($$('.outing-check:checked'));
+  if (!checked.length) return;
+  const selectedOutings = checked.map(cb => allOutings.find(o => o.id === cb.value)).filter(Boolean);
+  pendingOutingIds = selectedOutings.map(o => o.id);
+
+  // Switch to broadcasts tab
+  $$('.nav-tab').forEach(t => t.classList.remove('active'));
+  $$('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector('[data-panel="broadcasts"]').classList.add('active');
+  $('#panel-broadcasts').classList.add('active');
+
+  if (selectedOutings.length === 1 && selectedOutings[0].format === 'Wildcard') {
+    // Wildcard template
+    broadcastTemplate = 'wildcard';
+    $$('.composer-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-tmpl="wildcard"]').classList.add('active');
+    $('#shortlist-fields').style.display = 'none';
+    $('#wildcard-fields').style.display = 'block';
+    const o = selectedOutings[0];
+    $('#b-subject').value = `Wildcard: ${o.name}.`;
+    $('#wc-name').value = o.name;
+    $('#wc-desc').value = '';
+    $('#wc-date').value = `${o.day} ${o.date}`;
+    $('#wc-venue').value = `${o.venue}${o.neighbourhood ? ', ' + o.neighbourhood : ''}`;
+    $('#wc-url').value = o.rsvpUrl || '';
+  } else {
+    // Shortlist template
+    broadcastTemplate = 'shortlist';
+    $$('.composer-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('[data-tmpl="shortlist"]').classList.add('active');
+    $('#shortlist-fields').style.display = 'block';
+    $('#wildcard-fields').style.display = 'none';
+    const format = selectedOutings[0].format;
+    const day = selectedOutings[0].day;
+    $('#b-subject').value = `${format}: ${day}.`;
+    $('#b-format').value = format;
+    $('#b-day').value = day;
+
+    // Fill option blocks
+    const container = $('#b-options');
+    container.innerHTML = '';
+    selectedOutings.forEach((o, i) => {
+      const block = document.createElement('div');
+      block.className = 'option-block';
+      block.innerHTML = `<div class="option-label">option ${i + 1}</div>${i > 0 ? '<button class="remove-option">×</button>' : ''}
+        <label>name</label><input class="opt-name" value="${esc(o.name)}">
+        <label>description</label><input class="opt-desc" value="">
+        <label>venue</label><input class="opt-venue" value="${esc(o.venue)}${o.neighbourhood ? ', ' + esc(o.neighbourhood) : ''}">
+        <label>rsvp url</label><input class="opt-url" value="${esc(o.rsvpUrl || '')}">`;
+      container.appendChild(block);
+      const rmBtn = block.querySelector('.remove-option');
+      if (rmBtn) rmBtn.addEventListener('click', () => block.remove());
+    });
+  }
+
+  $('#preview-frame').classList.remove('visible');
+  setStatus('b-status', `${selectedOutings.length} outing${selectedOutings.length > 1 ? 's' : ''} loaded. edit and send.`, 'ok');
+});
+
+// Venue auto-fill neighbourhood
+$('#o-venue').addEventListener('change', () => {
+  const val = $('#o-venue').value;
+  const match = allVenues.find(v => v.name === val);
+  if (match && match.neighbourhood) {
+    $('#o-neighbourhood').value = match.neighbourhood;
+  }
+});
 
 $('#add-outing-btn').addEventListener('click', () => {
   editingOutingId = null;
