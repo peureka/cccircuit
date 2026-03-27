@@ -1,0 +1,25 @@
+{
+  "name": "cccircuit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/peureka/cccircuit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/peureka/cccircuit/issues"
+  },
+  "homepage": "https://github.com/peureka/cccircuit#readme",
+  "dependencies": {
+    "firebase-admin": "^13.7.0",
+    "resend": "^6.9.4"
+  }
+}
