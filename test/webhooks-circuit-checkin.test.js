@@ -2,17 +2,24 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("crypto");
 
-const { createHandler } = require("../api/webhooks/circuit-checkin");
+const {
+  createHandler,
+  parseSignatureHeader,
+  verifySignature,
+} = require("../api/webhooks/circuit-checkin");
 const { createFakeFirestore } = require("./helpers/fakeFirestore");
 const { createFakeRes } = require("./helpers/fakeRes");
 
 const SECRET = "circuit-webhook-test-secret";
 
-function sign(body, secret = SECRET) {
-  return crypto
-    .createHmac("sha256", secret)
-    .update(typeof body === "string" ? body : JSON.stringify(body))
-    .digest("hex");
+// Stripe-style signature, matching Circuit's signEnterpriseWebhook:
+//   payload = `${timestampSeconds}.${body}`
+//   header  = `t=${timestampSeconds},v1=${hex}`
+function signCircuit(body, { timestampSeconds, secret = SECRET } = {}) {
+  const ts = timestampSeconds ?? Math.floor(Date.now() / 1000);
+  const payload = `${ts}.${typeof body === "string" ? body : JSON.stringify(body)}`;
+  const hmac = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  return { header: `t=${ts},v1=${hmac}`, ts };
 }
 
 function makeHandler(overrides = {}) {
@@ -22,22 +29,28 @@ function makeHandler(overrides = {}) {
       db,
       webhookSecret: SECRET,
       timestamp: () => new Date("2026-05-20T20:00:00Z"),
+      now: overrides.now ?? (() => Math.floor(Date.now() / 1000)),
       ...overrides,
     }),
     db,
   };
 }
 
-function req({ body, signature, rawBody }) {
+function req(body, { signature, timestampSeconds, secret, eventType } = {}) {
   const stringBody = typeof body === "string" ? body : JSON.stringify(body);
+  const sig =
+    signature ??
+    signCircuit(stringBody, { timestampSeconds, secret }).header;
   return {
     method: "POST",
     headers: {
-      "x-circuit-signature": signature ?? sign(stringBody),
+      "x-circuit-signature": sig,
+      "x-circuit-event-id": "delivery-abc",
+      "x-circuit-event-type": eventType || "attendance.created",
       "content-type": "application/json",
     },
     body: typeof body === "string" ? JSON.parse(body) : body,
-    rawBody: rawBody ?? stringBody,
+    rawBody: stringBody,
   };
 }
 
@@ -52,10 +65,85 @@ async function seedOuting(db, outingId, circuitEventId) {
   });
 }
 
-test("POST with valid signature + mapped event records attendance", async () => {
+// --- Signature helpers ---
+
+test("parseSignatureHeader handles t=..,v1=.. in either order", () => {
+  assert.deepEqual(parseSignatureHeader("t=1700000000,v1=deadbeef"), {
+    timestamp: 1700000000,
+    signature: "deadbeef",
+  });
+  assert.deepEqual(parseSignatureHeader("v1=cafe,t=1700000001"), {
+    timestamp: 1700000001,
+    signature: "cafe",
+  });
+  assert.equal(parseSignatureHeader(""), null);
+  assert.equal(parseSignatureHeader("t=,v1=abc"), null);
+  assert.equal(parseSignatureHeader("v1=abc"), null); // missing t
+});
+
+test("verifySignature accepts a correctly signed body", () => {
+  const body = '{"type":"attendance.created"}';
+  const { header, ts } = signCircuit(body);
+  assert.equal(
+    verifySignature({
+      rawBody: body,
+      header,
+      secret: SECRET,
+      nowSeconds: ts,
+    }),
+    true,
+  );
+});
+
+test("verifySignature rejects a stale timestamp (>5min old)", () => {
+  const body = '{"type":"attendance.created"}';
+  const ts = 1_700_000_000;
+  const { header } = signCircuit(body, { timestampSeconds: ts });
+  assert.equal(
+    verifySignature({
+      rawBody: body,
+      header,
+      secret: SECRET,
+      nowSeconds: ts + 301, // 5m 1s later
+    }),
+    false,
+  );
+});
+
+test("verifySignature rejects a timestamp too far in the future", () => {
+  const body = '{"type":"attendance.created"}';
+  const ts = 1_700_000_000;
+  const { header } = signCircuit(body, { timestampSeconds: ts });
+  assert.equal(
+    verifySignature({
+      rawBody: body,
+      header,
+      secret: SECRET,
+      nowSeconds: ts - 301, // now is 5m 1s BEFORE the signed ts
+    }),
+    false,
+  );
+});
+
+test("verifySignature rejects a tampered body", () => {
+  const body = '{"type":"attendance.created"}';
+  const { header, ts } = signCircuit(body);
+  assert.equal(
+    verifySignature({
+      rawBody: body + "tampered",
+      header,
+      secret: SECRET,
+      nowSeconds: ts,
+    }),
+    false,
+  );
+});
+
+// --- Handler happy path with Circuit's actual payload shape ---
+
+test("POST with valid Circuit-shaped payload records attendance + advances vouches", async () => {
   const db = createFakeFirestore();
   await seedOuting(db, "out-may-20", "circuit-evt-123");
-  // Pre-seed a vouch pointing at the attendee
   await db.collection("vouches").doc("voucher-1__ada@example.com").set({
     from_member_id: "voucher-1",
     recipient_email: "ada@example.com",
@@ -63,16 +151,25 @@ test("POST with valid signature + mapped event records attendance", async () => 
   });
 
   const body = {
-    event_type: "checkin.created",
-    circuit_event_id: "circuit-evt-123",
-    guest: { email: "Ada@Example.com", name: "Ada" },
-    checked_in_at: "2026-05-20T20:15:00Z",
+    type: "attendance.created",
+    orgId: "org-culture-club",
+    locationId: "loc-soho-house",
+    eventId: "circuit-evt-123",
+    guest: {
+      guestId: "guest-abc",
+      email: "Ada@Example.com",
+      totalVisits: 1,
+      currentStreak: 1,
+    },
+    attendedAt: "2026-05-20T20:15:00Z",
+    source: "tap",
+    idempotencyKey: "return-xyz-789",
   };
 
   const { handler } = makeHandler({ db });
   const res = createFakeRes();
 
-  await handler(req({ body }), res);
+  await handler(req(body), res);
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.action, "attendance_recorded");
@@ -85,6 +182,8 @@ test("POST with valid signature + mapped event records attendance", async () => 
     .get();
   assert.equal(attendance.exists, true);
   assert.equal(attendance.data().source, "circuit_webhook");
+  // The Circuit delivery idempotency key is recorded for audit
+  assert.equal(attendance.data().circuit_return_id, "return-xyz-789");
 
   const vouch = await db
     .collection("vouches")
@@ -93,84 +192,97 @@ test("POST with valid signature + mapped event records attendance", async () => 
   assert.equal(vouch.data().status, "floor");
 });
 
-test("POST with mapping to unknown circuit_event_id skips cleanly", async () => {
+test("POST unmapped eventId → 200 with skipped_unmapped_event", async () => {
   const { handler } = makeHandler();
   const body = {
-    event_type: "checkin.created",
-    circuit_event_id: "unmapped-event",
+    type: "attendance.created",
+    eventId: "unknown-event",
     guest: { email: "a@x.com" },
-    checked_in_at: "2026-05-20T20:15:00Z",
+    attendedAt: "2026-05-20T20:15:00Z",
+    source: "tap",
+    idempotencyKey: "k1",
   };
-
   const res = createFakeRes();
-  await handler(req({ body }), res);
-
-  // Respond 200 (Circuit retries on 5xx; this is a legitimate non-error skip)
+  await handler(req(body), res);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.action, "skipped_unmapped_event");
 });
 
-test("POST with no guest email skips (can't match to Culture Club member)", async () => {
+test("POST no guest email → 200 with skipped_no_email", async () => {
   const db = createFakeFirestore();
-  await seedOuting(db, "out-x", "evt-x");
+  await seedOuting(db, "o1", "evt-1");
+  const { handler } = makeHandler({ db });
 
   const body = {
-    event_type: "checkin.created",
-    circuit_event_id: "evt-x",
+    type: "attendance.created",
+    eventId: "evt-1",
     guest: { name: "Walk-in", phone: "+44000000" },
-    checked_in_at: "2026-05-20T20:15:00Z",
+    attendedAt: "2026-05-20T20:15:00Z",
+    source: "walkin",
+    idempotencyKey: "k2",
   };
-
-  const { handler } = makeHandler({ db });
   const res = createFakeRes();
-  await handler(req({ body }), res);
-
+  await handler(req(body), res);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.action, "skipped_no_email");
 });
 
+test("POST with event type other than attendance.created is ignored", async () => {
+  const { handler } = makeHandler();
+  const body = {
+    type: "unlock.granted",
+    eventId: "evt-1",
+    guest: { email: "e@x.com" },
+    idempotencyKey: "k3",
+  };
+  const res = createFakeRes();
+  await handler(req(body, { eventType: "unlock.granted" }), res);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.action, "ignored_event_type");
+});
+
+// --- Signature rejection paths ---
+
 test("POST with invalid signature returns 401", async () => {
   const { handler } = makeHandler();
-  const body = { event_type: "checkin.created", circuit_event_id: "e", guest: { email: "e@x.com" } };
+  const body = { type: "attendance.created", eventId: "e", idempotencyKey: "k" };
   const res = createFakeRes();
-  await handler(req({ body, signature: "deadbeef" }), res);
+  await handler(req(body, { signature: "t=1700000000,v1=deadbeef" }), res);
   assert.equal(res.statusCode, 401);
 });
 
-test("POST with missing signature returns 401", async () => {
+test("POST missing signature header returns 401", async () => {
   const { handler } = makeHandler();
-  const body = { event_type: "checkin.created" };
-  const badReq = {
+  const body = { type: "attendance.created" };
+  const r = {
     method: "POST",
     headers: { "content-type": "application/json" },
     body,
     rawBody: JSON.stringify(body),
   };
   const res = createFakeRes();
-  await handler(badReq, res);
+  await handler(r, res);
   assert.equal(res.statusCode, 401);
 });
 
-test("POST with wrong event_type is acknowledged but not acted on", async () => {
-  const { handler } = makeHandler();
-  const body = {
-    event_type: "guest.updated",
-    circuit_event_id: "evt-1",
-    guest: { email: "e@x.com" },
-  };
+test("POST with stale timestamp returns 401", async () => {
+  // Sign as if now is 2026-05-20T20:00:00Z (matches makeHandler's default timestamp())
+  const now = Math.floor(Date.UTC(2026, 4, 20, 20, 0, 0) / 1000);
+  const staleTs = now - 400; // 6m 40s old, past the 5m window
+
+  const { handler } = makeHandler({ now: () => now });
+  const body = { type: "attendance.created", eventId: "e", idempotencyKey: "k" };
   const res = createFakeRes();
-  await handler(req({ body }), res);
-  assert.equal(res.statusCode, 200);
-  assert.equal(res.body.action, "ignored_event_type");
+  await handler(req(body, { timestampSeconds: staleTs }), res);
+  assert.equal(res.statusCode, 401);
 });
 
-test("POST with missing rawBody (required for signing) returns 400", async () => {
+test("POST missing rawBody returns 400", async () => {
   const { handler } = makeHandler();
-  const body = { event_type: "checkin.created" };
   const r = {
     method: "POST",
-    headers: { "x-circuit-signature": "anything" },
-    body,
+    headers: { "x-circuit-signature": "t=1,v1=abc" },
+    body: { type: "attendance.created" },
     // rawBody missing
   };
   const res = createFakeRes();
@@ -181,24 +293,27 @@ test("POST with missing rawBody (required for signing) returns 400", async () =>
 test("GET returns 405", async () => {
   const { handler } = makeHandler();
   const res = createFakeRes();
-  await handler({ method: "GET", headers: {} }, res);
+  await handler({ method: "GET", headers: {}, rawBody: "" }, res);
   assert.equal(res.statusCode, 405);
 });
 
-test("POST is idempotent — same check-in replayed doesn't duplicate attendance", async () => {
+// --- Idempotency ---
+
+test("POST is idempotent — replayed check-in doesn't duplicate attendance", async () => {
   const db = createFakeFirestore();
   await seedOuting(db, "out-rep", "evt-rep");
-
   const body = {
-    event_type: "checkin.created",
-    circuit_event_id: "evt-rep",
+    type: "attendance.created",
+    eventId: "evt-rep",
     guest: { email: "x@x.com" },
-    checked_in_at: "2026-05-20T20:15:00Z",
+    attendedAt: "2026-05-20T20:15:00Z",
+    source: "tap",
+    idempotencyKey: "k-replay",
   };
 
   const { handler } = makeHandler({ db });
-  await handler(req({ body }), createFakeRes());
-  await handler(req({ body }), createFakeRes());
+  await handler(req(body), createFakeRes());
+  await handler(req(body), createFakeRes());
 
   const snap = await db.collection("attendance").get();
   assert.equal(snap.docs.length, 1);

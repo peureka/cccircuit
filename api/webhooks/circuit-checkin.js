@@ -1,34 +1,63 @@
-// Webhook receiver: Circuit check-in events -> Culture Club attendance.
+// Webhook receiver: Circuit attendance.created events → Culture Club attendance.
 //
-// When a guest taps the Block at a Culture Club / LINECONIC event, Circuit
-// fires a webhook here. We translate that into an attendance record and
-// advance any matching vouches from "tapped" to "floor".
+// Contract matches Circuit's enterprise webhook dispatch (see
+// circuit/src/lib/enterprise-webhooks.ts). When a guest taps the Block at a
+// Culture Club event, Circuit POSTs here and we:
+//   1. verify the Stripe-style signature (t=<ts>,v1=<hmac over `<ts>.<body>`>)
+//   2. resolve the Circuit eventId to a Culture Club outing via
+//      outings.circuit_event_id
+//   3. upsert an attendance doc, idempotent by (outing_id, email)
+//   4. advance any tapped vouches pointing at this email → floor (+3 score)
 //
-// Circuit side (to be configured in the circuit admin / env):
-//   - Webhook URL: https://www.cccircuit.com/api/webhooks/circuit-checkin
-//   - HMAC-SHA256 signature of the raw request body (the EXACT bytes sent)
-//     passed in the X-Circuit-Signature header using shared secret
-//     CIRCUIT_WEBHOOK_SECRET.
-//   - Event types: "checkin.created" (others are acknowledged and ignored).
-//   - Mapping: Circuit Event -> Culture Club outing via outing.circuit_event_id.
-//     Events without a mapping land here and are skipped with 200 OK
-//     (not an error — Circuit keeps dispatching).
-//
-// Auth: X-Circuit-Signature header, verified against CIRCUIT_WEBHOOK_SECRET.
+// Response is always a 200 with an action tag unless the signature is bad
+// (401) or the body is malformed (400). Circuit retries only on non-2xx,
+// so legitimate skips (unmapped event, no email, wrong event type) are
+// acknowledged cleanly without triggering retries.
 
 const admin = require("firebase-admin");
 const crypto = require("crypto");
 
-function verifySignature(rawBody, header, secret) {
-  if (!header || !rawBody || !secret) return false;
+const TIMESTAMP_TOLERANCE_SECONDS = 300; // 5 minutes
+
+// Parse `t=<ts>,v1=<hex>` (order-insensitive).
+function parseSignatureHeader(header) {
+  if (typeof header !== "string" || header.length === 0) return null;
+  const parts = header.split(",").map((s) => s.trim());
+  let ts = null;
+  let sig = null;
+  for (const part of parts) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    const key = part.slice(0, eq);
+    const value = part.slice(eq + 1);
+    if (key === "t" && value.length > 0) {
+      const parsed = Number.parseInt(value, 10);
+      if (Number.isFinite(parsed)) ts = parsed;
+    } else if (key === "v1" && value.length > 0) {
+      sig = value;
+    }
+  }
+  if (ts === null || sig === null) return null;
+  return { timestamp: ts, signature: sig };
+}
+
+function verifySignature({ rawBody, header, secret, nowSeconds }) {
+  if (!rawBody || !header || !secret) return false;
+  const parsed = parseSignatureHeader(header);
+  if (!parsed) return false;
+
+  // Replay window: reject stale OR future-skewed timestamps.
+  const delta = Math.abs(nowSeconds - parsed.timestamp);
+  if (delta > TIMESTAMP_TOLERANCE_SECONDS) return false;
+
   const expected = crypto
     .createHmac("sha256", secret)
-    .update(rawBody)
+    .update(`${parsed.timestamp}.${rawBody}`)
     .digest("hex");
-  // Constant-time compare
+
   try {
     const a = Buffer.from(expected, "hex");
-    const b = Buffer.from(String(header), "hex");
+    const b = Buffer.from(parsed.signature, "hex");
     if (a.length !== b.length) return false;
     return crypto.timingSafeEqual(a, b);
   } catch {
@@ -51,23 +80,29 @@ async function findOutingByCircuitEventId(db, circuitEventId) {
     .where("circuit_event_id", "==", circuitEventId)
     .get();
   if (snap.docs.length === 0) return null;
-  // If multiple outings point at the same circuit event, take the first
-  // — collisions shouldn't happen in practice.
   const d = snap.docs[0];
   return { id: d.id, ...d.data() };
 }
 
-async function recordAttendanceAndAdvance({ db, outingId, email, timestamp }) {
+async function recordAttendanceAndAdvance({
+  db,
+  outingId,
+  email,
+  timestamp,
+  circuitReturnId,
+}) {
   const attId = `${outingId}__${email}`;
   const attRef = db.collection("attendance").doc(attId);
   const existing = await attRef.get();
   if (!existing.exists) {
-    await attRef.set({
+    const attData = {
       outing_id: outingId,
       email,
       attended_at: timestamp(),
       source: "circuit_webhook",
-    });
+    };
+    if (circuitReturnId) attData.circuit_return_id = circuitReturnId;
+    await attRef.set(attData);
   }
 
   const tappedSnap = await db
@@ -87,7 +122,12 @@ async function recordAttendanceAndAdvance({ db, outingId, email, timestamp }) {
   return { advanced, attendance_was_new: !existing.exists };
 }
 
-function createHandler({ db, webhookSecret, timestamp }) {
+function createHandler({ db, webhookSecret, timestamp, now }) {
+  const nowSecondsFn =
+    typeof now === "function"
+      ? now
+      : () => Math.floor(Date.now() / 1000);
+
   return async function handler(req, res) {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
@@ -95,36 +135,45 @@ function createHandler({ db, webhookSecret, timestamp }) {
 
     if (!req.rawBody || typeof req.rawBody !== "string") {
       return res.status(400).json({
-        error:
-          "rawBody required for signature verification — ensure the webhook route is deployed with bodyParser giving access to the raw request bytes",
+        error: "rawBody required for signature verification",
       });
     }
 
-    const signature = req.headers && req.headers["x-circuit-signature"];
-    if (!verifySignature(req.rawBody, signature, webhookSecret)) {
+    const signatureHeader =
+      req.headers && req.headers["x-circuit-signature"];
+    if (
+      !verifySignature({
+        rawBody: req.rawBody,
+        header: signatureHeader,
+        secret: webhookSecret,
+        nowSeconds: nowSecondsFn(),
+      })
+    ) {
       return res.status(401).json({ error: "Invalid signature" });
     }
 
     const body = req.body || {};
-    const eventType = body.event_type;
-    if (eventType !== "checkin.created") {
-      return res.status(200).json({
-        ok: true,
-        action: "ignored_event_type",
-        event_type: eventType,
-      });
+    // Circuit emits `type` in the body (and mirrors in the x-circuit-event-type
+    // header). The body field is the source of truth for routing.
+    const eventType = body.type;
+    if (eventType !== "attendance.created") {
+      return res
+        .status(200)
+        .json({ ok: true, action: "ignored_event_type", event_type: eventType });
     }
 
-    const circuitEventId = body.circuit_event_id;
+    const circuitEventId = body.eventId;
     if (!circuitEventId || typeof circuitEventId !== "string") {
-      return res.status(400).json({ error: "circuit_event_id required" });
+      return res.status(400).json({ error: "eventId required" });
     }
 
     const email = pickEmail(body.guest);
     if (!email) {
-      return res
-        .status(200)
-        .json({ ok: true, action: "skipped_no_email", circuit_event_id: circuitEventId });
+      return res.status(200).json({
+        ok: true,
+        action: "skipped_no_email",
+        event_id: circuitEventId,
+      });
     }
 
     try {
@@ -133,7 +182,7 @@ function createHandler({ db, webhookSecret, timestamp }) {
         return res.status(200).json({
           ok: true,
           action: "skipped_unmapped_event",
-          circuit_event_id: circuitEventId,
+          event_id: circuitEventId,
         });
       }
 
@@ -142,6 +191,10 @@ function createHandler({ db, webhookSecret, timestamp }) {
         outingId: outing.id,
         email,
         timestamp,
+        circuitReturnId:
+          typeof body.idempotencyKey === "string"
+            ? body.idempotencyKey
+            : null,
       });
 
       return res.status(200).json({
@@ -159,15 +212,11 @@ function createHandler({ db, webhookSecret, timestamp }) {
   };
 }
 
-// Production handler: lazy-init Firebase. Note: Vercel provides `req.body`
-// (parsed JSON) but not `rawBody` by default. We read the raw bytes via a
-// stream listener before the body parser runs.
+// Production handler: lazy-init Firebase, read raw body manually so the
+// signature can cover the exact bytes.
 let cachedProdHandler = null;
 
 async function readRawBody(req) {
-  // If Vercel already read and parsed the body, we can reconstruct; but the
-  // HMAC MUST be computed over the exact raw bytes. The robust path is to
-  // bypass Vercel's body parser for this route.
   return new Promise((resolve, reject) => {
     const chunks = [];
     req.on("data", (c) => chunks.push(c));
@@ -193,8 +242,6 @@ function defaultHandler(req, res) {
   return cachedProdHandler(req, res);
 }
 
-// Vercel requires this export to disable body parsing so we can read raw bytes.
-// The handler wrapper below reads the stream, hashes it, and also parses it.
 async function rawBodyHandler(req, res) {
   try {
     const raw = await readRawBody(req);
@@ -204,7 +251,7 @@ async function rawBodyHandler(req, res) {
     } catch {
       return res.status(400).json({ error: "Invalid JSON" });
     }
-  } catch (err) {
+  } catch {
     return res.status(400).json({ error: "Failed to read request body" });
   }
   return defaultHandler(req, res);
@@ -215,4 +262,5 @@ module.exports.config = {
   api: { bodyParser: false },
 };
 module.exports.createHandler = createHandler;
+module.exports.parseSignatureHeader = parseSignatureHeader;
 module.exports.verifySignature = verifySignature;

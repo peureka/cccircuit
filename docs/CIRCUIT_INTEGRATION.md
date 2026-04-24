@@ -29,81 +29,143 @@ a coupling.
 
 ---
 
-## What's already built (cccircuit side)
+## What's already built
 
-- **`POST /api/webhooks/circuit-checkin`** — receives Circuit check-in events.
-  HMAC-SHA256 signature-verified against `CIRCUIT_WEBHOOK_SECRET`. Maps
-  Circuit event IDs to Culture Club outings via `outings.circuit_event_id`.
-  Records attendance, advances `tapped → floor` vouches, returns a status
-  describing what happened (recorded / skipped / ignored).
-- **`outings.circuit_event_id` field** — new optional string field on outings.
-  Set it in the admin panel when creating/editing an outing. If absent, the
-  webhook skips cleanly (`action: "skipped_unmapped_event"`).
-- **Admin UI** — the outing form has a "circuit event id" input.
+### cccircuit side (complete)
+- **`POST /api/webhooks/circuit-checkin`** — receives Circuit `attendance.created`
+  events. Verifies Circuit's Stripe-style signature (`t=<ts>,v1=<hmac>`), rejects
+  stale timestamps (>5min). Maps Circuit eventId → Culture Club outing via
+  `outings.circuit_event_id`. Records attendance, advances `tapped → floor`
+  vouches, returns an action tag on every 2xx (`attendance_recorded`,
+  `skipped_unmapped_event`, `skipped_no_email`, `ignored_event_type`).
+- **`outings.circuit_event_id` field** — optional string on outings. Settable
+  via the admin form's "circuit event id" input.
 
-## What needs to happen (circuit side)
+### circuit side (already exists — no code changes needed)
+- **Enterprise webhook dispatch** at `src/lib/enterprise-webhooks.ts` with retries
+  (1m, 5m, 30m, 2h, 12h), Stripe-style signing, per-org subscriptions.
+- **`attendance.created` events fired** from `src/lib/checkin-pipeline.ts:125`
+  automatically on every check-in. Payload shape matches what cccircuit expects.
+- **Admin endpoint** for managing webhook subscriptions at
+  `/api/enterprise/v1/webhooks`.
 
-### 1. Set up Culture Club as an Organisation on Circuit
+Circuit's existing dispatch is the contract. cccircuit's receiver now honours
+it exactly — same signature format, same payload shape.
 
-Via Circuit's admin panel or provisioning script:
-- **Organisation:** name `Culture Club`, slug `culture-club`
-- **Location(s):** at minimum `Soho House — Greek Street` (London LINECONIC
-  venue). Add NYC venue when that starts.
-- **Block:** provision one Block for the Location via
-  `scripts/provision-block.ts`. Mount it at the entrance on the night.
-- **Organiser accounts:** PJ and Ciara as organisers on the Culture Club
-  organisation. Ashton has visibility if he wants it.
+## What needs to happen (Circuit ops — no code required)
 
-### 2. Create the May 20 event
+### 1. Create Culture Club as an Organisation on Circuit
 
+Three rows in Circuit's Postgres (or the equivalent through Circuit's admin UI
+when it exists):
+
+```sql
+-- Organisation
+INSERT INTO "Organisation" (id, name, slug, /* ... */)
+VALUES (gen_random_uuid(), 'Culture Club', 'culture-club', /* ... */);
+
+-- Location for Soho House Greek Street
+INSERT INTO "Location" (id, organisation_id, name, address, /* ... */)
+VALUES (gen_random_uuid(), '<org-uuid>', 'Soho House — Greek Street', '...', /* ... */);
+
+-- Organiser membership so PJ / Ciara / Ashton can manage
+INSERT INTO "OrganisationMember" (organisation_id, organiser_id, role)
+VALUES ('<org-uuid>', '<pj-organiser-id>', 'admin');
+```
+
+### 2. Provision a Block for the Location
+
+Use the existing circuit script: `scripts/provision-block.ts`. Mount the
+Block at the entrance of Soho House Greek Street for the May 20 show.
+
+### 3. Create the May 20 Event
+
+Via Circuit's existing organiser event-creation flow:
 - **Name:** `LINECONIC May 20`
 - **Format:** `show`
-- **Location:** the Soho House Greek Street Location
-- **Date:** 2026-05-20
 - **Organisation:** Culture Club
-- Capture the resulting Event ID — this goes into the Culture Club outing's
-  `circuit_event_id` field (see Step 4 below).
+- **Location:** Soho House — Greek Street
+- **Date:** 2026-05-20
+- Copy the resulting `Event.id` — goes into cccircuit's outing in Step 5.
 
-### 3. Configure the webhook dispatch
+### 4. Configure the webhook subscription
 
-Circuit already has webhook infrastructure (`ReturnSource.webhook` in the
-enum, `enterprise-webhooks` module, `crm-delivery` module). The new work is
-a webhook subscription that fires on check-in events.
-
-**Required config (env vars on Circuit's Vercel project):**
-```
-CCCIRCUIT_WEBHOOK_URL = https://www.cccircuit.com/api/webhooks/circuit-checkin
-CCCIRCUIT_WEBHOOK_SECRET = <same value as cccircuit's CIRCUIT_WEBHOOK_SECRET>
+Generate a shared secret once:
+```bash
+openssl rand -hex 32
 ```
 
-Generate the secret once with `openssl rand -hex 32`. Store it in BOTH
-Vercel projects under the corresponding env var names.
+Store it in BOTH Vercel projects under the corresponding env var name:
+- `circuit` project (Vercel): add to the webhook row below as `signing_secret`.
+- `cccircuit` project (Vercel): `CIRCUIT_WEBHOOK_SECRET = <value>`.
 
-**Webhook payload Circuit should POST:**
+Create the subscription row in Circuit's Postgres:
+
+```sql
+INSERT INTO "EnterpriseWebhook" (
+  id,
+  organisation_id,
+  url,
+  signing_secret,
+  events,
+  active,
+  created_at
+) VALUES (
+  gen_random_uuid(),
+  '<culture-club-org-uuid>',
+  'https://www.cccircuit.com/api/webhooks/circuit-checkin',
+  '<shared-secret-from-above>',
+  ARRAY['attendance.created'],
+  true,
+  NOW()
+);
+```
+
+Or, if you have an admin UI / API route for managing enterprise webhooks
+(Circuit has `/api/enterprise/v1/webhooks`), POST the equivalent payload
+through that.
+
+### 5. Link the Circuit Event to the Culture Club outing
+
+cccircuit admin → Outings → edit the May 20 outing → paste the Circuit
+`Event.id` from Step 3 into the `circuit_event_id` field → save.
+
+From now on, every tap at the Soho House Block at that event dispatches a
+webhook to cccircuit, which records attendance and advances any matching
+`tapped` vouches to `floor` (+3 score to each voucher).
+
+## What Circuit actually sends (the contract cccircuit now matches exactly)
+
+**Signature header** (`x-circuit-signature`):
+```
+t=<unix-timestamp-seconds>,v1=<hmac-sha256-hex-of-"<ts>.<body>"-using-signing_secret>
+```
+
+**Payload** (from `circuit/src/lib/checkin-pipeline.ts:125`):
 
 ```json
 {
-  "event_type": "checkin.created",
-  "circuit_event_id": "<Circuit's Event.id>",
+  "type": "attendance.created",
+  "orgId": "<culture-club-org-uuid>",
+  "locationId": "<soho-house-location-uuid>",
+  "eventId": "<circuit-event-uuid>",
   "guest": {
+    "guestId": "<circuit-guest-uuid>",
     "email": "ada@example.com",
-    "name": "Ada Lovelace",
-    "phone": "+447000000000"
+    "totalVisits": 3,
+    "currentStreak": 2
   },
-  "checked_in_at": "2026-05-20T20:15:00Z"
+  "attendedAt": "2026-05-20T20:15:00Z",
+  "source": "tap",
+  "idempotencyKey": "<circuit-return-record-uuid>"
 }
 ```
 
-Headers:
-- `Content-Type: application/json`
-- `X-Circuit-Signature: <HMAC-SHA256 hex of the raw request body using the shared secret>`
-
-**Which check-ins to dispatch:**
-- All successful check-ins (`Return.status = attended`, `Return.source = tap`).
-- Dispatch async — don't block the guest's tap response on webhook success.
-- Retry on 5xx with exponential backoff (standard webhook pattern).
-- Do NOT retry on 2xx (even if `action = "skipped_unmapped_event"` — that's
-  an acknowledged non-action).
+**Headers:**
+- `content-type: application/json`
+- `x-circuit-signature: t=...,v1=...`
+- `x-circuit-event-id: <delivery-uuid>`
+- `x-circuit-event-type: attendance.created`
 
 ### 4. Link the Circuit Event to the Culture Club outing
 
@@ -126,21 +188,26 @@ with auth, returning member emails + scores). Deferred until Circuit needs it.
 
 ## Testing the integration
 
-**Local / dev:**
-1. Generate a test secret: `openssl rand -hex 16`
-2. Export: `CIRCUIT_WEBHOOK_SECRET=<test-secret>`
-3. Build a test payload: `BODY='{"event_type":"checkin.created","circuit_event_id":"test","guest":{"email":"test@example.com"}}'`
-4. Sign: `SIG=$(printf "%s" "$BODY" | openssl dgst -sha256 -hmac "<test-secret>" | awk '{print $2}')`
-5. POST:
-   ```bash
-   curl -X POST https://www.cccircuit.com/api/webhooks/circuit-checkin \
-     -H "Content-Type: application/json" \
-     -H "X-Circuit-Signature: $SIG" \
-     -d "$BODY"
-   ```
+**One-line signed curl** (using the shared secret in `CIRCUIT_WEBHOOK_SECRET`):
 
-Expected: `200 OK` with `action: "skipped_unmapped_event"` (because no outing
-maps to `circuit_event_id = "test"`).
+```bash
+SECRET="<your-shared-secret>"
+TS=$(date +%s)
+BODY='{"type":"attendance.created","eventId":"test","guest":{"email":"test@example.com"},"attendedAt":"2026-05-20T20:15:00Z","source":"tap","idempotencyKey":"smoke-1"}'
+SIG="t=${TS},v1=$(printf '%s' "${TS}.${BODY}" | openssl dgst -sha256 -hmac "$SECRET" -hex | awk '{print $2}')"
+curl -X POST https://www.cccircuit.com/api/webhooks/circuit-checkin \
+  -H "Content-Type: application/json" \
+  -H "X-Circuit-Signature: $SIG" \
+  -d "$BODY"
+```
+
+Expected: `200 OK` with `action: "skipped_unmapped_event"` (no outing maps
+to `eventId = "test"`). Confirms the receiver is live and the signature
+verifies. If the secret is wrong: `401 Invalid signature`.
+
+**End-to-end on May 18 dry run:** tap the Block at the May 20 event (pre-show
+setup), then check cccircuit admin → Dashboard → the attendance count for
+that outing bumps by 1 and any vouch pointing at that email advances to floor.
 
 **End-to-end (May 20 dry run, 2026-05-18):**
 1. Circuit has Culture Club org + Soho House location + Block + event + webhook configured
