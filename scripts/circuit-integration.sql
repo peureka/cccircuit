@@ -26,13 +26,14 @@
 SELECT id, name, created_at FROM organisations ORDER BY created_at DESC LIMIT 10;
 
 \echo 'LINECONIC organiser (from env var LINECONIC_ORGANISER_ID — resolve by name too):'
-SELECT id, display_name, handle FROM organisers WHERE handle ILIKE '%lineconic%' OR display_name ILIKE '%lineconic%';
+SELECT id, name, slug, email FROM organisers
+WHERE name ILIKE '%lineconic%' OR slug ILIKE '%lineconic%';
 
 \echo 'Locations under LINECONIC-like organisers (look for Soho House):'
-SELECT l.id, l.name, l.city, l.organiser_id, o.display_name AS organiser
+SELECT l.id, l.name, l.city, l.organiser_id, o.name AS organiser
 FROM locations l
 JOIN organisers o ON o.id = l.organiser_id
-WHERE o.handle ILIKE '%lineconic%' OR o.display_name ILIKE '%lineconic%';
+WHERE o.name ILIKE '%lineconic%' OR o.slug ILIKE '%lineconic%';
 
 \prompt 'Press enter to proceed with the inserts, Ctrl-C to abort. Review the output above first. ' dummy
 
@@ -70,7 +71,7 @@ SELECT
   NOW(),
   'active'
 FROM organisers o
-WHERE (o.handle ILIKE '%lineconic%' OR o.display_name ILIKE '%lineconic%')
+WHERE (o.name ILIKE '%lineconic%' OR o.slug ILIKE '%lineconic%')
 ON CONFLICT (organisation_id, organiser_id) DO NOTHING;
 
 -- ─── 4. Create the EnterpriseWebhook subscription ───
@@ -98,7 +99,7 @@ INSERT INTO enterprise_webhooks (
 SELECT id, name, created_at FROM organisations WHERE name = 'Culture Club';
 
 \echo 'Organisation members linking to Culture Club:'
-SELECT om.id, om.role, o.display_name AS organiser_name
+SELECT om.id, om.role, o.name AS organiser_name
 FROM organisation_members om
 JOIN organisers o ON o.id = om.organiser_id
 JOIN organisations org ON org.id = om.organisation_id
