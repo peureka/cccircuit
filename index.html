@@ -381,6 +381,10 @@
       document.getElementById('email').focus();
     });
 
+    // Read voucher_id from ?v= query param (set when the user arrives from a
+    // /c/<chipUid> tap-landing CTA). Empty / missing is fine — unvouched signup.
+    const voucherId = new URLSearchParams(window.location.search).get('v') || '';
+
     document.getElementById('email-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('email').value.trim();
@@ -389,10 +393,12 @@
       const btn = document.getElementById('email-submit');
       btn.textContent = '...';
       try {
+        const payload = { email, name };
+        if (voucherId) payload.voucher_id = voucherId;
         const res = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, name }),
+          body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('signup failed');
         const result = await res.json();
