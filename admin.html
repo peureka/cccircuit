@@ -41,6 +41,13 @@
     .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .last-broadcast { font-size: 12px; color: var(--muted); margin-top: 16px; }
 
+    /* Status pills (cards, outings) */
+    .status-pill { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 2px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+    .status-unassigned { background: rgba(255,255,255,0.1); color: var(--muted); }
+    .status-active { background: rgba(255,68,0,0.15); color: var(--accent); }
+    .status-lost { background: rgba(255,255,255,0.05); color: var(--muted); }
+    .status-disabled { background: rgba(255,255,255,0.05); color: var(--muted); text-decoration: line-through; }
+
     /* Tables */
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th { text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 8px 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
@@ -129,11 +136,23 @@
   <!-- DASHBOARD -->
   <div class="panel active" id="panel-dashboard">
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-value" id="s-total">—</div><div class="stat-label">total signups</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-total">—</div><div class="stat-label">queue (signups)</div></div>
       <div class="stat-card"><div class="stat-value" id="s-week">—</div><div class="stat-label">this week</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-cards-unassigned">—</div><div class="stat-label">unassigned cards</div></div>
+      <div class="stat-card"><div class="stat-value" id="s-cards-active">—</div><div class="stat-label">active cards</div></div>
       <div class="stat-card"><div class="stat-value" id="s-broadcasts">—</div><div class="stat-label">broadcasts sent</div></div>
     </div>
     <div class="last-broadcast" id="s-last">—</div>
+
+    <div class="section-header" style="margin-top:40px;">
+      <span class="section-title">this week's outings</span>
+    </div>
+    <div id="s-outings" style="color:var(--muted);font-size:13px;">loading…</div>
+
+    <div class="section-header" style="margin-top:40px;">
+      <span class="section-title">leaderboard — top 5</span>
+    </div>
+    <div id="s-leaderboard" style="color:var(--muted);font-size:13px;">loading…</div>
   </div>
 
   <!-- CONTACTS -->
@@ -178,7 +197,10 @@
         <div class="option-block"><div class="option-label">option 1</div><label>name</label><input class="opt-name"><label>description</label><input class="opt-desc"><label>venue</label><input class="opt-venue"><label>rsvp url</label><input class="opt-url"></div>
         <div class="option-block"><div class="option-label">option 2</div><button class="remove-option">×</button><label>name</label><input class="opt-name"><label>description</label><input class="opt-desc"><label>venue</label><input class="opt-venue"><label>rsvp url</label><input class="opt-url"></div>
       </div>
-      <button class="btn btn-small" id="add-option">+ add option</button>
+      <div class="btn-row">
+        <button class="btn btn-small" id="add-option">+ add option</button>
+        <button class="btn btn-small" id="pull-from-outings" type="button" title="fill options from upcoming outings that match the selected format">pull from outings</button>
+      </div>
     </div>
 
     <div id="wildcard-fields" style="display:none;">
@@ -268,14 +290,21 @@
 
   <!-- CARDS -->
   <div class="panel" id="panel-cards">
+    <div class="stats-grid" style="margin-bottom:24px;">
+      <div class="stat-card"><div class="stat-value" id="cc-unassigned">—</div><div class="stat-label">unassigned</div></div>
+      <div class="stat-card"><div class="stat-value" id="cc-active">—</div><div class="stat-label">active</div></div>
+      <div class="stat-card"><div class="stat-value" id="cc-lost">—</div><div class="stat-label">lost</div></div>
+      <div class="stat-card"><div class="stat-value" id="cc-total">—</div><div class="stat-label">total</div></div>
+    </div>
+
     <div class="section-header">
       <span class="section-title">assign card</span>
     </div>
     <p style="color:var(--muted);font-size:12px;margin-bottom:16px;line-height:1.6;">
-      At the door: paste the chipUid from a printed card, confirm the member's email + name, and click assign. Creates a members doc + links the card.
+      At the door: paste the chipUid from a printed card, confirm the member's email + name, and click assign. Creates a members doc + activates the card.
     </p>
     <div class="form-row">
-      <div style="flex:2;"><label>chipUid</label><input type="text" id="ac-chipuid" placeholder="uuid from the NFC chip"></div>
+      <div style="flex:2;"><label>chipUid</label><input type="text" id="ac-chipuid" placeholder="uuid from the NFC chip" list="unassigned-chips"><datalist id="unassigned-chips"></datalist></div>
     </div>
     <div class="form-row">
       <div><label>email</label><input type="email" id="ac-email" placeholder="member@email.com"></div>
@@ -285,6 +314,26 @@
       <button class="btn btn-primary" id="assign-card-btn">assign</button>
     </div>
     <div class="status" id="ac-status"></div>
+
+    <div class="section-header" style="margin-top:40px;">
+      <span class="section-title">provision cards</span>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin-bottom:16px;line-height:1.6;">
+      After programming a batch of NFC cards with NFC Tools, paste the chipUids here (one per line) to register them as unassigned stock. Idempotent — already-registered chipUids are skipped.
+    </p>
+    <div><label>chipUids (one per line)</label><textarea id="pc-chipuids" placeholder="uuid-1&#10;uuid-2&#10;uuid-3" style="min-height:120px;font-family:var(--mono);"></textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="provision-cards-btn">provision</button>
+    </div>
+    <div class="status" id="pc-status"></div>
+
+    <div class="section-header" style="margin-top:40px;">
+      <span class="section-title">stock</span>
+    </div>
+    <table>
+      <thead><tr><th>chipUid</th><th>status</th><th>member</th><th>issued</th></tr></thead>
+      <tbody id="card-list"></tbody>
+    </table>
   </div>
 </div>
 
@@ -344,24 +393,92 @@ $$('.nav-tab').forEach(tab => {
     if (tab.dataset.panel === 'dashboard') loadDashboard();
     if (tab.dataset.panel === 'contacts') loadContacts();
     if (tab.dataset.panel === 'broadcasts') loadBroadcastHistory();
-    if (tab.dataset.panel === 'outings') loadOutings();
-    if (tab.dataset.panel === 'cards') {/* no load action — form is instantly usable */}
+    if (tab.dataset.panel === 'outings') { loadVenues(); loadOutings(); }
+    if (tab.dataset.panel === 'cards') loadCards();
     if (tab.dataset.panel === 'venues') loadVenues();
   });
 });
 
 // DASHBOARD
 async function loadDashboard() {
-  const res = await api('/api/stats');
-  const d = await res.json();
-  $('#s-total').textContent = d.signupCount ?? '—';
-  $('#s-week').textContent = d.weeklySignups ?? '—';
-  $('#s-broadcasts').textContent = d.broadcastCount ?? '—';
-  if (d.lastBroadcast) {
-    const date = d.lastBroadcast.sentAt ? new Date(d.lastBroadcast.sentAt).toLocaleDateString('en-GB') : '';
-    $('#s-last').textContent = `last broadcast: "${d.lastBroadcast.subject}" (${d.lastBroadcast.template}) — ${date}`;
-  } else {
-    $('#s-last').textContent = 'no broadcasts sent yet.';
+  // Stats (signups + broadcasts)
+  try {
+    const res = await api('/api/stats');
+    const d = await res.json();
+    $('#s-total').textContent = d.signupCount ?? '—';
+    $('#s-week').textContent = d.weeklySignups ?? '—';
+    $('#s-broadcasts').textContent = d.broadcastCount ?? '—';
+    if (d.lastBroadcast) {
+      const date = d.lastBroadcast.sentAt ? new Date(d.lastBroadcast.sentAt).toLocaleDateString('en-GB') : '';
+      $('#s-last').textContent = `last broadcast: "${d.lastBroadcast.subject}" (${d.lastBroadcast.template}) — ${date}`;
+    } else {
+      $('#s-last').textContent = 'no broadcasts sent yet.';
+    }
+  } catch (err) { console.error('stats:', err); }
+
+  // Card stock
+  try {
+    const res = await api('/api/cards');
+    if (res.ok) {
+      const d = await res.json();
+      $('#s-cards-unassigned').textContent = d.counts?.unassigned ?? 0;
+      $('#s-cards-active').textContent = d.counts?.active ?? 0;
+    }
+  } catch (err) { console.error('cards:', err); }
+
+  // Upcoming outings (next 3 non-completed, non-cancelled)
+  try {
+    const res = await api('/api/outings');
+    const d = await res.json();
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const upcoming = (d.outings || [])
+      .filter(o => !o.date || o.date >= todayIso)
+      .filter(o => o.status !== 'completed' && o.status !== 'cancelled')
+      .sort((a, b) => (a.date || '9999').localeCompare(b.date || '9999'))
+      .slice(0, 5);
+    const el = $('#s-outings');
+    if (!upcoming.length) {
+      el.innerHTML = '<em>no upcoming outings scheduled.</em>';
+    } else {
+      el.innerHTML = '<table><thead><tr><th>date</th><th>format</th><th>name</th><th>venue</th><th>status</th></tr></thead><tbody>' +
+        upcoming.map(o => {
+          const date = o.date ? new Date(o.date).toLocaleDateString('en-GB') : '—';
+          const venue = o.venue ? esc(o.venue) : '—';
+          const statusLabel = o.status || 'draft';
+          return `<tr>
+            <td>${date}</td>
+            <td style="color:var(--accent);">${esc(o.format || '—')}</td>
+            <td>${esc(o.name || '—')}</td>
+            <td>${venue}${o.neighbourhood ? ' <span style="color:var(--muted);">(' + esc(o.neighbourhood) + ')</span>' : ''}</td>
+            <td style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">${esc(statusLabel)}</td>
+          </tr>`;
+        }).join('') + '</tbody></table>';
+    }
+  } catch (err) {
+    console.error('outings:', err);
+    $('#s-outings').innerHTML = '<em>could not load outings.</em>';
+  }
+
+  // Leaderboard top 5 — public endpoint, no auth needed
+  try {
+    const res = await fetch('/api/board');
+    if (res.ok) {
+      const d = await res.json();
+      const top = (d.entries || []).slice(0, 5);
+      const el = $('#s-leaderboard');
+      if (!top.length) {
+        el.innerHTML = '<em>no vouches yet — the board fills once cards go out.</em>';
+      } else {
+        el.innerHTML = '<ol style="list-style:none;padding:0;">' +
+          top.map((e, i) => `<li style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;justify-content:space-between;">
+            <span><span style="color:var(--accent);font-weight:600;margin-right:12px;">${String(i + 1).padStart(2, '0')}</span>${esc(e.name)}</span>
+            <span style="color:var(--muted);font-variant-numeric:tabular-nums;">${e.score}</span>
+          </li>`).join('') + '</ol>';
+      }
+    }
+  } catch (err) {
+    console.error('board:', err);
+    $('#s-leaderboard').innerHTML = '<em>could not load leaderboard.</em>';
   }
 }
 
@@ -438,6 +555,56 @@ $('#add-option').addEventListener('click', () => {
   b.querySelector('.remove-option').addEventListener('click', () => b.remove());
 });
 $$('.remove-option').forEach(b => b.addEventListener('click', () => b.closest('.option-block').remove()));
+
+// Pull options from upcoming outings matching the selected format
+$('#pull-from-outings').addEventListener('click', async () => {
+  const format = $('#b-format').value;
+  setStatus('b-status', `loading ${format} outings…`, '');
+  try {
+    if (!allOutings.length) {
+      const res = await api('/api/outings');
+      const d = await res.json();
+      allOutings = d.outings || [];
+    }
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const upcoming = allOutings
+      .filter(o => o.format === format)
+      .filter(o => !o.date || o.date >= todayIso)
+      .filter(o => o.status !== 'cancelled' && o.status !== 'completed')
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+      .slice(0, 3);
+
+    if (!upcoming.length) {
+      setStatus('b-status', `no upcoming ${format} outings found`, 'error');
+      return;
+    }
+
+    // Clear & rebuild option blocks
+    const container = $('#b-options');
+    container.innerHTML = '';
+    upcoming.forEach((o, i) => {
+      const n = i + 1;
+      const b = document.createElement('div');
+      b.className = 'option-block';
+      b.innerHTML = (n > 1 ? `<div class="option-label">option ${n}</div><button class="remove-option">×</button>` : `<div class="option-label">option 1</div>`) +
+        `<label>name</label><input class="opt-name" value="${esc(o.name || '')}">` +
+        `<label>description</label><input class="opt-desc" value="${esc(o.venue || '')} · ${esc(o.day || '')} ${esc(o.date || '')}">` +
+        `<label>venue</label><input class="opt-venue" value="${esc(o.venue || '')}">` +
+        `<label>rsvp url</label><input class="opt-url" value="${esc(o.rsvpUrl || '')}">`;
+      container.appendChild(b);
+      const rm = b.querySelector('.remove-option');
+      if (rm) rm.addEventListener('click', () => b.remove());
+    });
+
+    // Auto-derive day/subject if they're empty
+    if (!$('#b-day').value && upcoming[0].day) $('#b-day').value = upcoming[0].day;
+    if (!$('#b-subject').value) $('#b-subject').value = `${format}: ${upcoming[0].day || 'this week'}.`;
+
+    setStatus('b-status', `loaded ${upcoming.length} ${format} outing${upcoming.length > 1 ? 's' : ''}`, 'ok');
+  } catch (err) {
+    setStatus('b-status', 'failed to load outings: ' + err.message, 'error');
+  }
+});
 
 function buildBroadcastPayload() {
   const subject = $('#b-subject').value.trim();
@@ -681,7 +848,87 @@ window.deleteVenue = async (id) => {
   loadVenues();
 };
 
-// ASSIGN CARD
+// CARDS — list, provision, assign
+let allCards = [];
+let cardCounts = { total: 0, unassigned: 0, active: 0, lost: 0, disabled: 0 };
+
+async function loadCards() {
+  try {
+    const res = await api('/api/cards');
+    if (!res.ok) return;
+    const data = await res.json();
+    allCards = data.cards || [];
+    cardCounts = data.counts || cardCounts;
+    renderCardStats();
+    renderCardList();
+    renderUnassignedDatalist();
+  } catch (err) {
+    console.error('loadCards:', err);
+  }
+}
+
+function renderCardStats() {
+  $('#cc-unassigned').textContent = cardCounts.unassigned;
+  $('#cc-active').textContent = cardCounts.active;
+  $('#cc-lost').textContent = cardCounts.lost;
+  $('#cc-total').textContent = cardCounts.total;
+}
+
+function renderCardList() {
+  const tbody = $('#card-list');
+  if (!allCards.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:16px 0;">no cards yet — provision some above.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allCards.map((c) => {
+    const issued = c.issued_at ? fmtDate(c.issued_at) : '—';
+    const member = c.member_name ? esc(c.member_name) : '—';
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;">${esc(c.chipUid)}</td>
+      <td><span class="status-pill status-${c.status}">${c.status}</span></td>
+      <td>${member}</td>
+      <td style="color:var(--muted);font-size:11px;">${issued}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderUnassignedDatalist() {
+  const dl = $('#unassigned-chips');
+  dl.innerHTML = allCards
+    .filter((c) => c.status === 'unassigned')
+    .map((c) => `<option value="${esc(c.chipUid)}">`)
+    .join('');
+}
+
+function fmtDate(ts) {
+  // Firestore timestamps can come across as { _seconds } or ISO strings.
+  if (!ts) return '';
+  if (typeof ts === 'string') return ts.slice(0, 10);
+  if (ts._seconds) return new Date(ts._seconds * 1000).toISOString().slice(0, 10);
+  if (ts.seconds) return new Date(ts.seconds * 1000).toISOString().slice(0, 10);
+  try { return new Date(ts).toISOString().slice(0, 10); } catch { return ''; }
+}
+
+$('#provision-cards-btn').addEventListener('click', async () => {
+  const raw = $('#pc-chipuids').value;
+  const chipUids = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+  if (chipUids.length === 0) {
+    setStatus('pc-status', 'paste at least one chipUid', 'error');
+    return;
+  }
+  setStatus('pc-status', `provisioning ${chipUids.length}…`, '');
+  try {
+    const res = await api('/api/provision-card', { method: 'POST', body: JSON.stringify({ chipUids }) });
+    const data = await res.json();
+    if (!res.ok) { setStatus('pc-status', data.error || 'provision failed', 'error'); return; }
+    setStatus('pc-status', `created ${data.created}, skipped ${data.skipped}${data.failed ? ', failed ' + data.failed : ''}`, 'success');
+    $('#pc-chipuids').value = '';
+    loadCards();
+  } catch (err) {
+    setStatus('pc-status', 'network error: ' + err.message, 'error');
+  }
+});
+
 $('#assign-card-btn').addEventListener('click', async () => {
   const chipUid = $('#ac-chipuid').value.trim();
   const email = $('#ac-email').value.trim();
@@ -704,6 +951,7 @@ $('#assign-card-btn').addEventListener('click', async () => {
     $('#ac-chipuid').value = '';
     $('#ac-email').value = '';
     $('#ac-name').value = '';
+    loadCards();
   } catch (err) {
     setStatus('ac-status', 'network error: ' + err.message, 'error');
   }
