@@ -1,6 +1,6 @@
 # Culture Club Card — Next Steps to May 20 Go-Live
 
-**Last updated:** 2026-04-24
+**Last updated:** 2026-04-24 (late session)
 **Target date:** 2026-05-20 (London LINECONIC, Soho House)
 **Curator at the door:** Ciara
 
@@ -8,23 +8,88 @@
 
 ## Where you are right now
 
-The 5-session build is complete. All code is on `origin/main` in this repo and (via Vercel auto-deploy from GitHub) on `cccircuit.com`. 66 tests pass. The reconciled Culture Club spec (`docs/CULTURE_CLUB_VISION_V2.md` + `../avdience-docs/docs/culture-club/CULTURE_CLUB_CARD.md` + `../avdience-docs/docs/culture-club/RECONCILIATION.md`) is the source of truth for what got built and why.
+Build is complete, tested (122 tests), and deployed. The Culture Club ↔ Circuit integration is wired on the cccircuit side and verified with a live signed-curl smoke test against prod. What remains is physical (cards + Block) and one SQL script against Circuit's prod DB.
 
 **What's actually running right now at cccircuit.com:**
 
 | URL | What it does | State today |
 |---|---|---|
-| `cccircuit.com/` | Signup form, captures email + name | Working |
-| `cccircuit.com/c/<chipUid>` | Tap-landing page for NFC cards | Returns "card not recognised" for any chipUid — **no cards provisioned yet** |
-| `cccircuit.com/board` | Public leaderboard | Shows "No vouches yet" empty state |
-| `cccircuit.com/admin` | Admin panel → "Cards" tab | Ready; assign-card form works but you have nothing to assign yet |
+| `cccircuit.com/` | Signup form (email + name, picks up `?v=` voucher attribution) | Working |
+| `cccircuit.com/c/<chipUid>` | Tap-landing page for NFC cards | Renders 404 "card not recognised" for any chipUid — **no cards provisioned yet** |
+| `cccircuit.com/board` | Public leaderboard | "No vouches yet" empty state; auto-populates once cards go out |
+| `cccircuit.com/admin` | Admin panel: Dashboard, Contacts, Broadcasts, Outings, Venues, Cards | Fully upgraded — stock view, assign, provision, record attendance, pull-from-outings in broadcasts |
 | `cccircuit.com/api/signup` | Queue signup endpoint | Live |
 | `cccircuit.com/api/vouch` | Attribution endpoint | Live |
 | `cccircuit.com/api/c/<chipUid>` | Chip resolve | Live |
-| `cccircuit.com/api/board` | Leaderboard JSON (edge-cached 60s) | Live |
-| `cccircuit.com/api/assign-card` | Admin: hand a card to a member | Live, needs `Authorization: Bearer <BROADCAST_SECRET>` |
+| `cccircuit.com/api/board` | Public leaderboard JSON (edge-cached 60s) | Live |
+| `cccircuit.com/api/assign-card` | Admin: hand a card to a member (+ auto-advances any tapped vouches → voucher) | Live |
+| `cccircuit.com/api/provision-card` | Admin: bulk register chipUids as unassigned stock | Live |
+| `cccircuit.com/api/cards` | Admin: list cards + stock counts (populates the Cards tab) | Live |
+| `cccircuit.com/api/attendance` | Admin: record who attended an outing (auto-advances tapped vouches → floor) | Live |
+| `cccircuit.com/api/webhooks/circuit-checkin` | Receives Circuit `attendance.created` webhooks | Live + smoke-tested against prod on 2026-04-24 |
+| `cccircuit.com/api/assign-card`, `/outings`, `/venues`, `/contacts`, `/broadcast`, `/stats`, `/cards`, `/provision-card`, `/attendance`, `/vouch` | Admin + public routes | All live |
 
-**What is missing:** the physical cards. That's the entire remaining path.
+**Seeded:** 43 venues across Watch/Move/Eat/See + six target neighbourhoods (Circuit operator overlap flagged in notes). 15 of the 43 are Circuit-target venues.
+
+**What is missing:** physical cards (Step 1), Block provisioning on the Circuit side (Step 4), and the one-time Circuit DB setup (Step A below).
+
+---
+
+## NEW — Circuit integration setup (one-time, pre-May 20)
+
+**Status as of 2026-04-24:**
+- ✓ `CIRCUIT_WEBHOOK_SECRET` is set in cccircuit Vercel prod (value saved separately — check 1Password).
+- ✓ Webhook receiver is live and verified with a signed smoke test.
+- ☐ Circuit-side SQL to set up the Culture Club organisation + EnterpriseWebhook subscription — **you need to run this**.
+- ☐ Create the May 20 event on Circuit and paste its `Event.id` into the cccircuit outing.
+- ☐ Provision a Block for Soho House (physical chip UID + HMAC key from the Seritag delivery sheet).
+
+### Step A — Run the Circuit-side SQL (~5 min)
+
+Get the prod DB connection string, then:
+
+```bash
+# CIRCUIT_DB_URL = production DATABASE_URL from Circuit's Vercel project
+psql "$CIRCUIT_DB_URL" \
+  -v secret="<the-CIRCUIT_WEBHOOK_SECRET-value>" \
+  -f /Users/roch/Documents/Code/cccircuit/scripts/circuit-integration.sql
+```
+
+The script:
+1. Prints existing organisations, the LINECONIC organiser, and LINECONIC's locations — review before it prompts you to continue.
+2. Creates the `Culture Club` organisation (idempotent — `WHERE NOT EXISTS`).
+3. Links LINECONIC's organiser to Culture Club via an `organisation_members` row.
+4. Creates the `enterprise_webhooks` row pointing at cccircuit with the shared secret.
+5. Prints the final state for verification.
+
+### Step B — Create the May 20 event on Circuit
+
+Via Circuit's organiser event-creation flow:
+- Name: `LINECONIC May 20`
+- Organiser: LINECONIC
+- Location: Soho House Greek Street
+- Date: 2026-05-20
+- Copy the resulting `Event.id`.
+
+### Step C — Link it to the cccircuit outing
+
+In `cccircuit.com/admin` → Outings → edit the May 20 outing → paste the
+Circuit `Event.id` into the `circuit_event_id` field → save.
+
+### Step D — Verify end-to-end (on May 18 dry run)
+
+```bash
+CIRCUIT_WEBHOOK_SECRET="<value>" \
+  bash /Users/roch/Documents/Code/cccircuit/scripts/smoke-circuit-webhook.sh
+```
+
+Expected: HTTP 200 with `action: "skipped_unmapped_event"` (uses a fake
+event id). If 401, the secret in shell env doesn't match what's in
+cccircuit's Vercel env.
+
+For a real end-to-end test: tap the Block with your phone at the May 20
+event — the check-in flows through Circuit → cccircuit webhook →
+attendance doc → vouch advancement → leaderboard refresh.
 
 ---
 
