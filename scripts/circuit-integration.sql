@@ -58,6 +58,8 @@ SELECT id AS culture_club_org_id FROM organisations WHERE name = 'Culture Club';
 -- Resolve LINECONIC organiser by handle — adjust this WHERE clause if the
 -- handle is different in your DB. You can also hard-code the UUID from the
 -- LINECONIC_ORGANISER_ID env var if the handle lookup fails.
+-- OrgRole enum is: owner | manager | viewer (no 'admin'). Pick `owner` —
+-- LINECONIC organiser runs the programming that feeds Culture Club.
 INSERT INTO organisation_members (
   id, organisation_id, organiser_id, role, relationship_type, active, created_at, onboarding_status
 )
@@ -65,7 +67,7 @@ SELECT
   gen_random_uuid(),
   (SELECT id FROM organisations WHERE name = 'Culture Club' LIMIT 1),
   o.id,
-  'admin',
+  'owner',
   'owned',
   true,
   NOW(),
