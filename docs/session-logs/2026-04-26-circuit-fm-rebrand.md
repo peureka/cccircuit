@@ -76,3 +76,49 @@ After the initial rebrand commit (`800b1c5`) shipped, four further commits lande
 - Manual browser smoke of the spinning ring on mobile (no harness here).
 
 **Next**: Folder rename (PJ), regenerate `og.png`, decide what to do with `meetcircuit.com/fm`'s broken `/request` link in a separate session inside the `circuit` repo.
+
+---
+
+## Continuation 2 — landing polish + OG + footer + responsive copy fit
+
+After the design-token alignment commit (`e556afb`) shipped, five more commits landed in this session.
+
+**Done (continuation 2)**:
+
+5. `c6e1852` `fix(cccircuit): drop "Launching" — copy is "London 2026" not "Launching London 2026"`
+   - Tightens the below-form line, about overlay, meta description, OG/Twitter description, and confirmation email body. "Launching X" reads as absence; "London 2026" states where + when with no qualifier.
+
+6. `cecbf5b` `feat(cccircuit): regenerate og.png with Circuit FM branding`
+   - 1200×630 PNG, dark bg `#0A0A0A`, thin orange ring centered top-third (`r=78 stroke=10`, ratio ~0.13 matching the live spinning ring), "Circuit FM" wordmark, subline, "LONDON 2026" tracked caps below.
+   - Source SVG kept at `scripts/og-source.svg`; regen via `sips -s format png scripts/og-source.svg --out og.png` (macOS-native, no new deps). Closes the OG-image backlog item.
+   - Initial render had stroke=20 (too thick); thinned to 10. Initial wordmark fell back to system sans (Menlo not picked up); switched to Menlo explicitly, then later to `-apple-system` to match site.
+
+7. `c378026` `refactor(cccircuit): drop mono on "Circuit FM" wordmark, align sans stack to fm.css`
+   - `--sans` repointed to `-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif` (was Inter/Segoe UI/Roboto). Verbatim match to `circuit/src/app/fm/fm.css`.
+   - `.wordmark`, `.brand`, `.brand-mark` lose their `font-family: var(--mono)` overrides. Brand text inherits sans like everything else on the page.
+   - OG SVG re-rendered with the same sans stack so social card matches.
+
+8. `19abdb2` `feat(cccircuit): add footer with copyright + privacy/terms links`
+   - Footer comes back (had been killed when removing the "Powered by Circuit / meetcircuit.com" link). New layout: `© 2026` left, `Privacy` / `Terms` right.
+   - Privacy + Terms link to `https://meetcircuit.com/privacy` and `/terms` (canonical legal pages exist in `circuit/src/app/privacy/page.tsx` and `circuit/src/app/terms/page.tsx`; same parent entity, same legal applies).
+
+9. `c7527f2` `fix(cccircuit): subline + supporting line fit on one line at every viewport`
+   - `.subline` and `.supporting` get `white-space: nowrap` and tighter `clamp()` font-size scaling. Supporting line is 60 chars — the limiting case — pinned to `clamp(10px, 2.6vw, 15px)`. Subline at `clamp(11px, 3.4vw, 22px)`.
+   - Removed `.headline { max-width: 720px }` so the headline width follows content.
+   - Verified math at iPhone SE (375px): both lines fit with horizontal margin to spare.
+
+**Tests**: 122/122 throughout.
+
+**Decisions (continuation 2)**:
+- **Mono dropped from brand wordmark.** PJ's earlier brief said "'Circuit FM' in monospace"; current direction matches `fm.css` which uses sans across the board. Brand text isn't data — design system says sans for UI, mono for data. Course-corrected.
+- **Footer privacy/terms link to meetcircuit.com.** Considered: (a) create static `/privacy.html` / `/terms.html` in this repo, (b) link to circuit.fm/privacy (which would need a Vercel rewrite), (c) link directly to `meetcircuit.com/...`. Chose (c) — the canonical legal pages already exist at `circuit/src/app/privacy/` and `terms/`, same legal entity, simplest to maintain (one source of truth).
+- **One-line fit math is tight on small mobile.** At 375px viewport the supporting line renders at ~9.75px which is small but readable on retina displays. PJ's explicit requirement was "fit one line each on mobile and desktop" — preserved over readability. If we want bigger text on mobile, the copy needs to be shorter (currently 60 chars).
+- **OG generated via sips, not a new dependency.** Considered npm `sharp` / `npx sharp-cli`; rejected as scope creep for a one-time asset. macOS `sips` rendered the SVG cleanly; source SVG checked in for future regen.
+
+**Backlog (still open)**:
+- Local folder rename `/Users/roch/Code/cccircuit` → `/Users/roch/Code/circuitfm-web` (do between sessions; rename mid-session breaks bash CWD).
+- meetcircuit.com `/fm` still has a broken link to `/request` (file at `/fm/request`). Out of scope for this repo; flagged for `circuit` repo session.
+- No automated test coverage on `index.html` (still no jsdom harness; intentional — would be scope creep).
+- Manual smoke test at iPhone SE width to confirm the one-line math holds in practice (PJ tested at iPhone Pro width and saw wrapping pre-fix; fix is pushed, awaiting their re-test).
+
+**Next**: Push, smoke test on actual mobile (PJ), then move to `circuit` repo session for the broken `/fm` → `/request` link.
