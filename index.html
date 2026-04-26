@@ -263,10 +263,27 @@
     /* Footer */
     footer {
       flex-shrink: 0;
-      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       padding-bottom: 16px;
       font-size: 12px;
       color: var(--text-secondary);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    footer a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: opacity 100ms linear;
+    }
+
+    footer a:hover {
+      opacity: 0.7;
     }
 
     /* About overlay */
@@ -356,6 +373,14 @@
         </div>
       </div>
     </main>
+
+    <footer>
+      <span>© 2026</span>
+      <div class="footer-links">
+        <a href="https://meetcircuit.com/privacy">Privacy</a>
+        <a href="https://meetcircuit.com/terms">Terms</a>
+      </div>
+    </footer>
   </div>
 
   <div class="about-overlay" id="about-overlay">
