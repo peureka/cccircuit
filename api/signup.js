@@ -1,8 +1,9 @@
 const { Resend } = require("resend");
 const admin = require("firebase-admin");
 const { renderConfirmation } = require("../lib/templates");
+const { createCircuitClient } = require("../lib/circuit-client");
 
-function createHandler({ db, resend, segmentId, from, timestamp }) {
+function createHandler({ db, resend, segmentId, from, timestamp, circuit }) {
   return async function handler(req, res) {
     if (req.method !== "POST") {
       return res.status(405).json({ error: "Method not allowed" });
@@ -45,6 +46,25 @@ function createHandler({ db, resend, segmentId, from, timestamp }) {
       };
       if (cleanName) docData.name = cleanName;
 
+      // Push the subscriber into Circuit FM's audience on meetcircuit.com so
+      // we get a stable profileToken back. Best-effort: a Circuit outage must
+      // not fail the signup or block the confirmation email — the email just
+      // ships without the profile-completion CTA.
+      let profileUrl = null;
+      if (circuit) {
+        try {
+          const result = await circuit.upsertAudience({
+            email: clean,
+            name: cleanName || undefined,
+            source: "circuitfm-signup",
+          });
+          profileUrl = result?.profileUrl || null;
+          if (profileUrl) docData.profileUrl = profileUrl;
+        } catch (circuitErr) {
+          console.error("Circuit audience-upsert error:", circuitErr);
+        }
+      }
+
       await db
         .collection("signups")
         .doc(clean)
@@ -74,7 +94,7 @@ function createHandler({ db, resend, segmentId, from, timestamp }) {
               from,
               to: [clean],
               subject: "you're on the list.",
-              html: renderConfirmation(),
+              html: renderConfirmation({ profileUrl }),
             })
             .catch((err) => console.error("Confirmation email error:", err));
         }
@@ -101,9 +121,15 @@ function defaultHandler(req, res) {
       });
     }
     const resendKey = process.env.RESEND_API_KEY;
+    const circuitBaseUrl = process.env.CIRCUIT_BASE_URL;
+    const circuitToken = process.env.CIRCUIT_ORGANISER_API_TOKEN;
     cachedProdHandler = createHandler({
       db: admin.firestore(),
       resend: resendKey ? new Resend(resendKey) : null,
+      circuit:
+        circuitBaseUrl && circuitToken
+          ? createCircuitClient({ baseUrl: circuitBaseUrl, token: circuitToken })
+          : null,
       segmentId: process.env.RESEND_SEGMENT_ID,
       from:
         process.env.RESEND_FROM || "Circuit FM <onboarding@resend.dev>",

@@ -6,18 +6,37 @@ const { createFakeFirestore } = require("./helpers/fakeFirestore");
 const { createFakeResend } = require("./helpers/fakeResend");
 const { createFakeRes } = require("./helpers/fakeRes");
 
+function createFakeCircuit({ mode = "ok" } = {}) {
+  const calls = [];
+  return {
+    async upsertAudience(args) {
+      calls.push(args);
+      if (mode === "down") throw new Error("circuit unreachable");
+      return {
+        guestId: "guest-" + calls.length,
+        profileToken: "tok-" + calls.length,
+        profileUrl:
+          "https://meetcircuit.com/u/tok-" + calls.length,
+      };
+    },
+    _calls: calls,
+  };
+}
+
 function makeHandler(overrides = {}) {
   const db = overrides.db || createFakeFirestore();
   const resend = overrides.resend || createFakeResend();
+  const circuit = overrides.circuit !== undefined ? overrides.circuit : createFakeCircuit();
   const deps = {
     db,
     resend,
+    circuit,
     segmentId: "seg_test",
     from: "Test <test@example.com>",
     timestamp: () => new Date("2026-04-24T00:00:00Z"),
     ...overrides,
   };
-  return { handler: createHandler(deps), db, resend };
+  return { handler: createHandler(deps), db, resend, circuit };
 }
 
 test("POST with email and name stores both on the signup doc", async () => {
@@ -177,4 +196,94 @@ test("POST with name longer than 100 chars returns 400", async () => {
     res,
   );
   assert.equal(res.statusCode, 400);
+});
+
+// ---- Circuit audience-upsert integration ----
+
+test("new signup posts to Circuit with normalised email + name", async () => {
+  const { handler, circuit } = makeHandler();
+  const res = createFakeRes();
+  await handler(
+    {
+      method: "POST",
+      body: { email: "Alex@Example.com", name: "Alex" },
+    },
+    res,
+  );
+  assert.equal(res.statusCode, 200);
+  assert.equal(circuit._calls.length, 1);
+  assert.equal(circuit._calls[0].email, "alex@example.com");
+  assert.equal(circuit._calls[0].name, "Alex");
+  assert.equal(circuit._calls[0].source, "circuitfm-signup");
+});
+
+test("Circuit profileUrl is persisted on the Firestore signup doc", async () => {
+  const { handler, db } = makeHandler();
+  const res = createFakeRes();
+  await handler(
+    {
+      method: "POST",
+      body: { email: "alex@example.com", name: "Alex" },
+    },
+    res,
+  );
+  const doc = await db.collection("signups").doc("alex@example.com").get();
+  assert.equal(doc.data().profileUrl, "https://meetcircuit.com/u/tok-1");
+});
+
+test("confirmation email includes the profileUrl", async () => {
+  const { handler, resend } = makeHandler();
+  const res = createFakeRes();
+  await handler(
+    {
+      method: "POST",
+      body: { email: "new@example.com", name: "New" },
+    },
+    res,
+  );
+  await new Promise((r) => setImmediate(r));
+  assert.equal(resend._calls.emails.length, 1);
+  assert.match(
+    resend._calls.emails[0].html,
+    /https:\/\/meetcircuit\.com\/u\/tok-1/,
+    "confirmation email html should include the profile URL",
+  );
+});
+
+test("Circuit failure does not fail signup; confirmation email still sends", async () => {
+  const { handler, resend } = makeHandler({ circuit: createFakeCircuit({ mode: "down" }) });
+  const res = createFakeRes();
+  await handler(
+    {
+      method: "POST",
+      body: { email: "alex@example.com", name: "Alex" },
+    },
+    res,
+  );
+  await new Promise((r) => setImmediate(r));
+  assert.equal(res.statusCode, 200, "signup must still succeed");
+  assert.equal(resend._calls.emails.length, 1, "confirmation email must still send");
+  assert.doesNotMatch(
+    resend._calls.emails[0].html,
+    /\/u\//,
+    "no profile URL when circuit failed",
+  );
+});
+
+test("when circuit dep is null, signup works as before with no profile CTA", async () => {
+  const { handler, db, resend } = makeHandler({ circuit: null });
+  const res = createFakeRes();
+  await handler(
+    {
+      method: "POST",
+      body: { email: "alex@example.com", name: "Alex" },
+    },
+    res,
+  );
+  await new Promise((r) => setImmediate(r));
+  assert.equal(res.statusCode, 200);
+  const doc = await db.collection("signups").doc("alex@example.com").get();
+  assert.equal(doc.data().profileUrl, undefined);
+  assert.equal(resend._calls.emails.length, 1);
+  assert.doesNotMatch(resend._calls.emails[0].html, /\/u\//);
 });
