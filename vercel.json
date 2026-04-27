@@ -3,6 +3,11 @@
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/board", "destination": "/board.html" },
     { "source": "/c/:chipUid", "destination": "/api/c/:chipUid" },
-    { "source": "/u/:token", "destination": "/api/u/:token" }
+    { "source": "/u/:token", "destination": "/api/u/:token" },
+    { "source": "/b/:chipUid", "destination": "/api/b/:chipUid" },
+    {
+      "source": "/.well-known/apple-app-site-association",
+      "destination": "/api/aasa"
+    }
   ]
 }
