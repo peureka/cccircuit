@@ -191,3 +191,64 @@ test("GET /c/<chipUid> (legacy UUID) still routes through Firestore", async () =
   assert.match(res.body, /Legacy Member/);
   assert.match(res.body, /thinks you belong in Circuit FM/);
 });
+
+// Sub-PR 24 — avatars on the circle preview.
+
+test("GET /c/<mbr_*> renders fallback initials when photoUrl is null", async () => {
+  const fetchPatch = patchedFetch(activePreviewResponse());
+  try {
+    const handler = createHandler({ db: createFakeFirestore() });
+    const res = createFakeRes();
+    await handler(
+      { method: "GET", query: { chipUid: "mbr_abc" }, headers: {} },
+      res
+    );
+    // Subject's avatar (large) — photoUrl null in fixture, so initial 'P'
+    // appears inside an avatar-fallback span.
+    assert.match(res.body, /class="avatar avatar-lg avatar-fallback"[^>]*>P<\/span>/);
+    // Connection avatars (small) for Alicia/Theo/Naia.
+    assert.match(res.body, /class="avatar avatar-sm avatar-fallback"[^>]*>A<\/span>/);
+    assert.match(res.body, /class="avatar avatar-sm avatar-fallback"[^>]*>T<\/span>/);
+    assert.match(res.body, /class="avatar avatar-sm avatar-fallback"[^>]*>N<\/span>/);
+  } finally {
+    fetchPatch.restore();
+  }
+});
+
+test("GET /c/<mbr_*> renders <img> when photoUrl is present", async () => {
+  const fetchPatch = patchedFetch({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      data: {
+        subject: {
+          id: "gp-pj",
+          displayName: "PJ",
+          photoUrl: "https://cdn.example/pj.jpg",
+          memberCode: "mbr_abc",
+        },
+        connections: [
+          {
+            id: "gp-1",
+            displayName: "Alicia",
+            photoUrl: "https://cdn.example/alicia.jpg",
+          },
+        ],
+      },
+    }),
+  });
+  try {
+    const handler = createHandler({ db: createFakeFirestore() });
+    const res = createFakeRes();
+    await handler(
+      { method: "GET", query: { chipUid: "mbr_abc" }, headers: {} },
+      res
+    );
+    // Subject's photoUrl rendered as <img>
+    assert.match(res.body, /<img src="https:\/\/cdn\.example\/pj\.jpg"/);
+    // Connection's photoUrl rendered as <img>
+    assert.match(res.body, /<img src="https:\/\/cdn\.example\/alicia\.jpg"/);
+  } finally {
+    fetchPatch.restore();
+  }
+});
