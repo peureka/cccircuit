@@ -227,7 +227,7 @@ ${renderChips("formatPreferences", FORMATS, profile?.formatPreferences)}
       </div>
 
       <div class="actions">
-        <a class="privacy-link" href="https://meetcircuit.com/privacy">Privacy policy</a>
+        <a class="privacy-link" href="/privacy">Privacy policy</a>
         <button type="submit" class="cta">Save preferences</button>
       </div>
     </form>
