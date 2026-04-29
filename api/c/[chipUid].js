@@ -87,14 +87,47 @@ function renderError() {
 <a class="cta" href="/">Get on the list →</a>`);
 }
 
+/// First letter of the (trimmed) display name, uppercased. Used as the
+/// fallback inside the avatar circle when a member doesn't have a
+/// photoUrl. Empty input -> '·' so the circle still has *something*
+/// visually grounded rather than being a void.
+function avatarInitial(name) {
+  if (!name) return "·";
+  const trimmed = String(name).trim();
+  if (!trimmed) return "·";
+  return trimmed[0].toUpperCase();
+}
+
+/// Avatar markup — circular img with srcset fallback to letter initial.
+/// Inline style only because this page bypasses the build pipeline; we
+/// don't have a CSS-in-JS layer here. Sized 32px in the list, 56px on
+/// the subject header.
+function avatarHtml({ photoUrl, displayName, size }) {
+  const initial = escapeHtml(avatarInitial(displayName));
+  const safeAlt = escapeHtml(displayName || "");
+  const dim = size === "lg" ? 56 : 32;
+  const fontSize = size === "lg" ? 22 : 14;
+  if (photoUrl) {
+    const safeUrl = escapeHtml(photoUrl);
+    return `<span class="avatar avatar-${size}" style="width:${dim}px;height:${dim}px"><img src="${safeUrl}" alt="${safeAlt}" loading="lazy"/></span>`;
+  }
+  return `<span class="avatar avatar-${size} avatar-fallback" style="width:${dim}px;height:${dim}px;font-size:${fontSize}px">${initial}</span>`;
+}
+
 // Phase 3 — non-member circle preview.
-function renderCirclePreview({ subjectName, connections }) {
-  const safeName = escapeHtml(subjectName || "A member");
+function renderCirclePreview({ subject, connections }) {
+  const subjectName = (subject && subject.displayName) || "A member";
+  const safeName = escapeHtml(subjectName);
+  const subjectAvatar = avatarHtml({
+    photoUrl: subject && subject.photoUrl,
+    displayName: subjectName,
+    size: "lg",
+  });
   const namesHtml = connections.length
     ? connections
         .map(
           (c) =>
-            `<li>${escapeHtml(c.displayName || "A member")}</li>`,
+            `<li>${avatarHtml({ photoUrl: c.photoUrl, displayName: c.displayName, size: "sm" })}<span>${escapeHtml(c.displayName || "A member")}</span></li>`,
         )
         .join("")
     : `<li class="quiet">A quiet circle, for now.</li>`;
@@ -119,8 +152,12 @@ function renderCirclePreview({ subjectName, connections }) {
   h1{font-family:"Inter","Helvetica Neue",sans-serif;font-size:clamp(28px,5vw,40px);font-weight:500;line-height:1.15;letter-spacing:-0.02em;margin-bottom:32px}
   .preamble{font-size:14px;color:#A0A0A0;margin-bottom:32px;line-height:1.6}
   ul.circle{list-style:none;padding:0;margin:0 0 48px;border-top:1px solid #1a1a1a}
-  ul.circle li{padding:14px 0;font-size:18px;border-bottom:1px solid #1a1a1a}
-  ul.circle li.quiet{color:#666;font-size:14px}
+  ul.circle li{padding:12px 0;font-size:18px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:14px}
+  ul.circle li.quiet{color:#666;font-size:14px;display:block}
+  .avatar{display:inline-flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden;background:#1a1a1a;flex-shrink:0}
+  .avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  .avatar-fallback{font-family:"SF Mono","JetBrains Mono",monospace;font-weight:600;color:#A0A0A0;background:#0F0F0F;border:1px solid #1a1a1a}
+  .subject-row{display:flex;align-items:center;gap:18px;margin-bottom:32px}
   .cta{display:inline-block;background:#FF4400;color:#000;font-weight:600;text-decoration:none;padding:14px 28px;border-radius:2px;font-size:14px;letter-spacing:0.02em}
   footer{font-size:12px;color:#A0A0A0;margin-top:48px}
   footer a{color:#A0A0A0;text-decoration:underline}
@@ -130,9 +167,8 @@ function renderCirclePreview({ subjectName, connections }) {
 <div class="page">
 <nav><span class="wordmark">Circuit FM</span></nav>
 <main>
-<p class="label">${safeName.toUpperCase()}'S CIRCLE</p>
+<div class="subject-row">${subjectAvatar}<div><p class="label" style="margin-bottom:4px">${safeName.toUpperCase()}'S CIRCLE</p><p class="preamble" style="margin:0;font-size:13px">For 24 hours. After that the window closes.</p></div></div>
 <h1>You're seeing who's in the room.</h1>
-<p class="preamble">For 24 hours. After that the window closes.</p>
 <ul class="circle">${namesHtml}</ul>
 <a class="cta" href="/?v=${encodeURIComponent(safeName)}">Get on the list →</a>
 </main>
@@ -226,9 +262,11 @@ function createHandler({ db }) {
         if (result.error) {
           return res.status(500).send(renderError());
         }
-        const subjectName =
-          (result.subject && result.subject.displayName) ||
-          "A Circuit FM member";
+        const subject = result.subject || {
+          displayName: "A Circuit FM member",
+          photoUrl: null,
+        };
+        const subjectName = subject.displayName || "A Circuit FM member";
 
         // 24-hour cookie window: first view sets the timestamp, later
         // views check it. After 24h the user sees the lapse view.
@@ -242,7 +280,7 @@ function createHandler({ db }) {
         }
         return res.status(200).send(
           renderCirclePreview({
-            subjectName,
+            subject,
             connections: result.connections,
           }),
         );
