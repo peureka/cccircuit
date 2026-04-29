@@ -51,7 +51,7 @@ function wrapPage(body) {
 <div class="page">
 <nav><span class="wordmark">Circuit FM</span></nav>
 <main>${body}</main>
-<footer><a href="https://circuit.fm">circuit.fm</a><a href="https://circuit.fm/terms">Terms</a></footer>
+<footer><a href="https://circuit.fm">circuit.fm</a><a href="https://circuit.fm/privacy">Privacy</a><a href="https://circuit.fm/terms">Terms</a></footer>
 </div>
 </body>
 </html>`;
@@ -136,7 +136,7 @@ function renderCirclePreview({ subjectName, connections }) {
 <ul class="circle">${namesHtml}</ul>
 <a class="cta" href="/?v=${encodeURIComponent(safeName)}">Get on the list →</a>
 </main>
-<footer><a href="https://circuit.fm">circuit.fm</a><a href="https://circuit.fm/terms">Terms</a></footer>
+<footer><a href="https://circuit.fm">circuit.fm</a><a href="https://circuit.fm/privacy">Privacy</a><a href="https://circuit.fm/terms">Terms</a></footer>
 </div>
 </body>
 </html>`;
