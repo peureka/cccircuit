@@ -36,7 +36,8 @@ test("GET with a valid active card renders HTML naming the vouching member", asy
   assert.equal(res.statusCode, 200);
   assert.equal(res.headers["Content-Type"], "text/html; charset=utf-8");
   assert.match(res.body, /Ada Lovelace/);
-  assert.match(res.body, /thinks you belong in Circuit FM/);
+  assert.match(res.body, /gave you their card/);
+  assert.match(res.body, /That's how Circuit FM works/);
   assert.match(res.body, /\/\?v=member-1/);
 });
 

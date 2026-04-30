@@ -189,7 +189,7 @@ test("GET /c/<chipUid> (legacy UUID) still routes through Firestore", async () =
 
   assert.equal(res.statusCode, 200);
   assert.match(res.body, /Legacy Member/);
-  assert.match(res.body, /thinks you belong in Circuit FM/);
+  assert.match(res.body, /gave you their card/);
 });
 
 // Sub-PR 24 — avatars on the circle preview.

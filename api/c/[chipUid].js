@@ -60,9 +60,12 @@ function wrapPage(body) {
 function renderLanding({ memberName, memberId }) {
   const safeName = escapeHtml(memberName);
   const safeId = encodeURIComponent(memberId);
+  // Per CIRCUIT_FM_DESIGN_BRIEF.md §B.3 — don't repeat the homepage hero
+  // verbatim. The Card is the gesture; the copy names the gesture and
+  // moves on. The homepage already carries the post-Soho tagline.
   return wrapPage(`
-<h1>${safeName} thinks you belong in Circuit FM.</h1>
-<p class="strapline">A members' club with no house. It moves with you.</p>
+<h1>${safeName} gave you their card.</h1>
+<p class="strapline">That's how Circuit FM works.</p>
 <a class="cta" href="/?v=${safeId}">Get on the list →</a>`);
 }
 

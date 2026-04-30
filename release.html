@@ -7,81 +7,154 @@
   <meta name="robots" content="noindex">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none'><rect width='32' height='32' rx='6' fill='%230A0A0A'/><circle cx='16' cy='16' r='9' stroke='%23FF4400' stroke-width='2.5' fill='none'/></svg>">
   <style>
-    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-    :root{
-      --bg:#0A0A0A;--text:#F5F5F5;--muted:#A0A0A0;--accent:#FF4400;--accent-dim:rgba(255,68,0,0.3);--border:rgba(255,255,255,0.12);
-      --sans:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;
-      --mono:"SF Mono","Cascadia Code","Fira Code","Consolas",monospace;
+    /*
+     * Visual baseline mirrored from /u/[token] per CIRCUIT_FM_DESIGN_BRIEF.md §B.2:
+     * brand mark in monospace, organiser eyebrow in micro-caps, glass-card consent
+     * row, alert banner pattern for errors, toast confirmation on submit.
+     */
+    *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+    :root {
+      --bg: #0A0A0A;
+      --surface: rgba(255,255,255,0.03);
+      --text-primary: #F5F5F5;
+      --text-secondary: #A0A0A0;
+      --text-tertiary: #666;
+      --accent: #FF4400;
+      --accent-dim: rgba(255, 68, 0, 0.3);
+      --border: rgba(255,255,255,0.12);
+      --border-strong: rgba(255,255,255,0.25);
+      --sans: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      --mono: "SF Mono", "Cascadia Code", "Fira Code", "Consolas", monospace;
     }
-    body{background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.6;font-size:15px;min-height:100vh;min-height:100dvh}
-    .page{max-width:480px;margin:0 auto;padding:32px 24px 80px}
-    nav{margin-bottom:48px}
-    .wordmark{font-size:16px;font-weight:600;color:var(--text);text-decoration:none;letter-spacing:-0.02em}
-    h1{font-size:28px;font-weight:600;letter-spacing:-0.02em;margin-bottom:12px;line-height:1.15}
-    .lead{font-size:14px;color:var(--muted);margin-bottom:32px;line-height:1.6}
-    form{display:flex;flex-direction:column;gap:16px}
-    label{font-size:13px;color:var(--muted);font-weight:500}
-    input[type=text],input[type=email]{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:2px;color:var(--text);font-family:var(--sans);font-size:15px;padding:12px 14px;height:46px;outline:none;transition:border-color 100ms linear;width:100%}
-    input[type=text]:focus,input[type=email]:focus{border-color:var(--accent)}
-    .consent-row{display:flex;gap:12px;align-items:flex-start;padding:14px;border:1px solid var(--border);border-radius:2px;background:rgba(255,255,255,0.02);margin-top:8px}
-    .consent-row input[type=checkbox]{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex-shrink:0;cursor:pointer}
-    .consent-row label{font-size:14px;color:var(--text);line-height:1.5;cursor:pointer;font-weight:400}
-    .submit{background:var(--accent);color:var(--bg);font-family:var(--sans);font-size:15px;font-weight:600;border:none;border-radius:2px;height:46px;cursor:pointer;transition:opacity 100ms linear;margin-top:8px}
-    .submit:hover{opacity:0.85}
-    .submit:disabled{opacity:0.5;cursor:not-allowed}
-    .fine{font-size:12px;color:var(--muted);line-height:1.5;margin-top:8px}
-    .fine a{color:var(--muted);text-decoration:underline}
-    .fine a:hover{color:var(--text)}
-    .success{padding:24px;border:1px solid var(--accent-dim);background:rgba(255,68,0,0.05);border-radius:2px;text-align:center}
-    .success-title{font-size:16px;font-weight:600;margin-bottom:6px}
-    .success-body{font-size:14px;color:var(--muted)}
-    .error{font-size:13px;color:var(--accent);margin-top:4px}
-    footer{margin-top:64px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.08);font-size:12px;color:var(--muted);display:flex;gap:16px}
-    footer a{color:var(--muted);text-decoration:underline}
+    html, body { background: var(--bg); color: var(--text-primary); font-family: var(--sans); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    body { min-height: 100vh; min-height: 100dvh; }
+
+    .page { max-width: 560px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    nav { display: flex; align-items: center; margin-bottom: 56px; }
+    .wordmark { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); text-decoration: none; }
+
+    h1 { font-size: clamp(28px, 5vw, 36px); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; margin-bottom: 16px; }
+    .org-eyebrow { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    .lead { font-size: 15px; line-height: 1.5; color: var(--text-secondary); margin-bottom: 12px; }
+    .lead-meta { font-size: 13px; color: var(--text-tertiary); margin-bottom: 0; }
+    .mono { font-family: var(--mono); }
+
+    .alert { font-size: 13px; line-height: 1.5; color: var(--text-primary); background: rgba(255,68,0,0.08); border: 1px solid var(--accent-dim); border-radius: 4px; padding: 12px 16px; margin: 24px 0 0; }
+    .alert a { color: var(--accent); }
+    .alert[hidden] { display: none; }
+
+    form { margin-top: 48px; display: flex; flex-direction: column; gap: 36px; }
+
+    fieldset { border: 0; padding: 0; }
+    legend { font-size: 16px; font-weight: 500; padding: 0; margin-bottom: 6px; }
+    .hint { font-size: 13px; line-height: 1.5; color: var(--text-tertiary); margin-bottom: 14px; }
+
+    .input-wrap { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); background: var(--surface); border-radius: 2px; height: 44px; padding: 0 14px; transition: border-color 100ms linear; }
+    .input-wrap:focus-within { border-color: var(--accent); }
+    .input-wrap input { flex: 1; background: none; border: 0; outline: none; color: var(--text-primary); font-family: var(--sans); font-size: 15px; min-width: 0; }
+    .input-wrap input::placeholder { color: rgba(255,255,255,0.25); }
+
+    .consent { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); }
+    .consent input { margin-top: 3px; accent-color: var(--accent); width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+    .consent label { font-size: 14px; line-height: 1.5; color: var(--text-secondary); cursor: pointer; }
+
+    .actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+    .privacy-link { font-size: 12px; color: var(--text-tertiary); text-decoration: underline; }
+    .privacy-link:hover { color: var(--text-secondary); }
+    .cta { background: var(--accent); color: var(--bg); border: 0; border-radius: 2px; font-family: var(--sans); font-size: 15px; font-weight: 600; padding: 0 24px; height: 44px; cursor: pointer; transition: opacity 100ms linear; }
+    .cta:hover { opacity: 0.85; }
+    .cta:active { transform: translateY(1px); }
+    .cta:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .fine { font-size: 12px; line-height: 1.5; color: var(--text-tertiary); }
+    .fine a { color: var(--text-tertiary); text-decoration: underline; }
+    .fine a:hover { color: var(--text-secondary); }
+
+    /* Success state — flat raised surface, mono eyebrow, plain prose. */
+    .success { padding: 24px; border: 1px solid var(--accent-dim); background: rgba(255,68,0,0.05); border-radius: 4px; margin-top: 48px; }
+    .success-title { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .success-body { font-size: 15px; color: var(--text-primary); line-height: 1.5; }
+
+    /* Toast — slides up, holds, fades. Mirrors /u/[token] exactly. */
+    .toast { position: fixed; left: 50%; bottom: 32px; transform: translate(-50%, 16px); background: var(--accent); color: var(--bg); padding: 12px 24px; border-radius: 2px; font-family: var(--sans); font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none; box-shadow: 0 12px 32px rgba(0,0,0,0.4); animation: toast 3s ease-out forwards; }
+    .toast[hidden] { display: none; }
+    @keyframes toast {
+      0%   { opacity: 0; transform: translate(-50%, 16px); }
+      10%  { opacity: 1; transform: translate(-50%, 0); }
+      85%  { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -8px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .toast { animation: none; opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 12px; color: var(--text-secondary); display: flex; gap: 16px; }
+    footer a { color: var(--text-secondary); text-decoration: underline; }
+    footer a:hover { color: var(--text-primary); }
+
+    @media (min-width: 720px) {
+      .page { padding: 56px 24px 96px; }
+      nav { margin-bottom: 72px; }
+    }
   </style>
 </head>
 <body>
 <div class="page">
   <nav><a class="wordmark" href="/">Circuit FM</a></nav>
 
-  <h1>Content release</h1>
-  <p class="lead">Sign here to let Circuit FM use footage of you. This is a standalone release — separate from membership.</p>
+  <header>
+    <p class="org-eyebrow">Circuit FM</p>
+    <h1>Content release</h1>
+    <p class="lead">Sign here to let Circuit FM use footage of you. This is a standalone release — separate from membership.</p>
+    <p class="alert" id="error" hidden></p>
+  </header>
 
   <form id="release-form" autocomplete="on" novalidate>
     <input type="hidden" name="referrer" id="referrer">
 
-    <div>
-      <label for="name">Name</label>
-      <input type="text" id="name" name="name" required maxlength="100" autocomplete="name">
-    </div>
+    <fieldset>
+      <legend>Name</legend>
+      <p class="hint">As you'd want it credited.</p>
+      <div class="input-wrap">
+        <input type="text" id="name" name="name" required maxlength="100" autocomplete="name" placeholder="Your name">
+      </div>
+    </fieldset>
 
-    <div>
-      <label for="email">Email</label>
-      <input type="email" id="email" name="email" required maxlength="254" autocomplete="email">
-    </div>
+    <fieldset>
+      <legend>Email</legend>
+      <p class="hint">Used only to confirm your release and respond to takedowns.</p>
+      <div class="input-wrap">
+        <input type="email" id="email" name="email" required maxlength="254" autocomplete="email" placeholder="you@email.com">
+      </div>
+    </fieldset>
 
-    <div class="consent-row">
+    <div class="consent">
       <input type="checkbox" id="consent" name="consent" required>
       <label for="consent">I consent to Circuit FM using footage of me on Instagram, TikTok, YouTube, and circuit.fm.</label>
     </div>
 
     <p class="fine">Full scope and takedown process in our <a href="/terms#content-consent">Terms, Section 3</a>. You can request removal at any time by emailing <a href="mailto:circuit@avdience.com">circuit@avdience.com</a>.</p>
 
-    <button type="submit" class="submit" id="submit">Sign release</button>
-    <p class="error" id="error" hidden></p>
+    <div class="actions">
+      <a class="privacy-link" href="/privacy">Privacy policy</a>
+      <button type="submit" class="cta" id="submit">Sign release</button>
+    </div>
   </form>
 
   <div class="success" id="success" hidden>
-    <p class="success-title">Your release is on file.</p>
-    <p class="success-body">Thank you. You can close this tab.</p>
+    <p class="success-title">On file</p>
+    <p class="success-body">Your release is logged. You can close this tab.</p>
   </div>
-
-  <footer>
-    <a href="/">circuit.fm</a>
-    <a href="/privacy">Privacy</a>
-    <a href="/terms">Terms</a>
-  </footer>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>Saved.</div>
+
+<footer>
+  <a href="/">circuit.fm</a>
+  <a href="/privacy">Privacy</a>
+  <a href="/terms">Terms</a>
+</footer>
 
 <script>
   // Capture the full URL (including ?shoot=day1 query params Ciara may append)
@@ -92,12 +165,21 @@
   const submitBtn = document.getElementById('submit');
   const errorEl = document.getElementById('error');
   const successEl = document.getElementById('success');
+  const toastEl = document.getElementById('toast');
 
   function showError(msg) {
     errorEl.textContent = msg;
     errorEl.hidden = false;
     submitBtn.disabled = false;
     submitBtn.textContent = 'Sign release';
+  }
+
+  function showToast() {
+    // Reset animation if previously fired
+    toastEl.hidden = false;
+    toastEl.style.animation = 'none';
+    void toastEl.offsetWidth;
+    toastEl.style.animation = '';
   }
 
   form.addEventListener('submit', async (e) => {
@@ -134,6 +216,7 @@
       }
       form.hidden = true;
       successEl.hidden = false;
+      showToast();
     } catch (err) {
       console.error(err);
       showError('Network error. Try again or email circuit@avdience.com.');
