@@ -22,7 +22,7 @@ const AASA = {
           {
             "/": "/b/*",
             comment:
-              "Block-tap URL — opens the full Circuit FM app when installed",
+              "Block-tap URL — opens the full Circuit app when installed",
           },
         ],
       },

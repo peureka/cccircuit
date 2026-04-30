@@ -132,7 +132,7 @@ function defaultHandler(req, res) {
           : null,
       segmentId: process.env.RESEND_SEGMENT_ID,
       from:
-        process.env.RESEND_FROM || "Circuit FM <onboarding@resend.dev>",
+        process.env.RESEND_FROM || "Circuit <onboarding@resend.dev>",
       timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
     });
   }

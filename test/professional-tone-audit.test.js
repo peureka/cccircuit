@@ -150,7 +150,7 @@ test("findBannedMatch flags known-bad copy", () => {
     "Unlock exclusive rewards by attending more events!",
     "You've achieved Level 3. Congratulations!",
     "Don't miss this — last chance to claim your badge.",
-    "You're a Circuit FM Core Member.",
+    "You're a Circuit Core Member.",
     "Top 10% of Regulars in your borough.",
   ];
   for (const line of bad) {

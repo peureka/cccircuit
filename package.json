@@ -1,7 +1,7 @@
 {
   "name": "circuit-fm",
   "version": "1.0.0",
-  "description": "Circuit FM — a members' club with no house. It moves with you.",
+  "description": "Circuit — a members' club with no house. It moves with you.",
   "main": "index.js",
   "scripts": {
     "test": "node --test"
